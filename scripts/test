@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Run the test suite with coverage. Extra arguments go to pytest.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+uv run --locked pytest --cov --cov-report=term-missing "$@"

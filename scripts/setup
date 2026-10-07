@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Install the development environment into .venv from uv.lock.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+uv sync --locked

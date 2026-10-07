@@ -1,0 +1,12 @@
+{
+  "entity": {
+    "switch": {
+      "hold_open": {
+        "default": "mdi:door-open",
+        "state": {
+          "off": "mdi:door-closed"
+        }
+      }
+    }
+  }
+}

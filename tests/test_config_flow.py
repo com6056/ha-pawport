@@ -1,0 +1,175 @@
+"""Tests for the Pawport config flow."""
+
+from __future__ import annotations
+
+import aiohttp
+from homeassistant.config_entries import SOURCE_USER
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMockResponse
+
+from custom_components.pawport.api import API_URL, GRAPHQL_URL
+from custom_components.pawport.const import CONF_AUTH_TOKEN, CONF_CODE, CONF_REFRESH_TOKEN, DOMAIN
+
+from .conftest import CODE, EMAIL, NEW_TOKEN, PASSWORD, USER_ID, FakePawport, setup_entry
+
+
+async def start(hass: HomeAssistant, email: str = EMAIL) -> str:
+    """Start a user flow, submit the email, and return the flow id at the menu."""
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "user"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_EMAIL: f" {email} "}
+    )
+    assert result["type"] is FlowResultType.MENU
+    assert result["step_id"] == "method"
+    return result["flow_id"]
+
+
+async def choose(hass: HomeAssistant, flow_id: str, option: str) -> dict:  # type: ignore[type-arg]
+    return await hass.config_entries.flow.async_configure(flow_id, {"next_step_id": option})
+
+
+async def test_code_flow(hass: HomeAssistant, pawport: FakePawport) -> None:
+    flow_id = await start(hass)
+    result = await choose(hass, flow_id, "send_code")
+    assert result["step_id"] == "code"
+    assert pawport.codes_sent == [EMAIL]
+
+    result = await hass.config_entries.flow.async_configure(flow_id, {CONF_CODE: "999999"})
+    assert result["errors"] == {"base": "invalid_code"}
+
+    result = await hass.config_entries.flow.async_configure(flow_id, {CONF_CODE: CODE})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == EMAIL
+    assert result["result"].unique_id == USER_ID
+    assert result["data"] == {
+        CONF_EMAIL: EMAIL,
+        CONF_AUTH_TOKEN: NEW_TOKEN,
+        CONF_REFRESH_TOKEN: None,
+    }
+
+
+async def test_password_flow_stores_password(hass: HomeAssistant, pawport: FakePawport) -> None:
+    flow_id = await start(hass)
+    result = await choose(hass, flow_id, "password")
+    assert result["step_id"] == "password"
+
+    result = await hass.config_entries.flow.async_configure(flow_id, {CONF_PASSWORD: "nope"})
+    assert result["errors"] == {"base": "invalid_auth"}
+
+    result = await hass.config_entries.flow.async_configure(flow_id, {CONF_PASSWORD: PASSWORD})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_PASSWORD] == PASSWORD
+    assert pawport.codes_sent == []
+
+
+async def test_password_flow_errors(hass: HomeAssistant, pawport: FakePawport) -> None:
+    flow_id = await start(hass)
+    await choose(hass, flow_id, "password")
+    pawport.overrides["/user/password"] = aiohttp.ClientError("down")
+    result = await hass.config_entries.flow.async_configure(flow_id, {CONF_PASSWORD: PASSWORD})
+    assert result["errors"] == {"base": "cannot_connect"}
+
+    pawport.overrides["/user/password"] = AiohttpClientMockResponse("post", API_URL, status=404)
+    result = await hass.config_entries.flow.async_configure(flow_id, {CONF_PASSWORD: PASSWORD})
+    assert result["errors"] == {"base": "unknown"}
+
+
+async def test_code_errors(hass: HomeAssistant, pawport: FakePawport) -> None:
+    flow_id = await start(hass)
+    await choose(hass, flow_id, "send_code")
+    for override, error in (
+        (aiohttp.ClientError("down"), "cannot_connect"),
+        (AiohttpClientMockResponse("post", API_URL, status=404), "unknown"),
+        (
+            AiohttpClientMockResponse(
+                "post", API_URL, status=422, json={"errors": {"emailAddress": ["unknown"]}}
+            ),
+            "invalid_auth",
+        ),
+    ):
+        pawport.overrides["/user/verify"] = override
+        result = await hass.config_entries.flow.async_configure(flow_id, {CONF_CODE: CODE})
+        assert result["errors"] == {"base": error}
+
+
+async def test_send_code_failures_abort(hass: HomeAssistant, pawport: FakePawport) -> None:
+    for override, reason in (
+        (aiohttp.ClientError("down"), "cannot_connect"),
+        (
+            AiohttpClientMockResponse("post", API_URL, status=422, json={"message": "bad"}),
+            "invalid_email",
+        ),
+        (AiohttpClientMockResponse("post", API_URL, status=404), "unknown"),
+    ):
+        pawport.overrides["/user"] = override
+        flow_id = await start(hass)
+        result = await choose(hass, flow_id, "send_code")
+        assert result["type"] is FlowResultType.ABORT
+        assert result["reason"] == reason
+
+
+async def test_account_read_failure_aborts(hass: HomeAssistant, pawport: FakePawport) -> None:
+    flow_id = await start(hass)
+    await choose(hass, flow_id, "password")
+    pawport.overrides["authDataGet"] = AiohttpClientMockResponse("post", GRAPHQL_URL, status=500)
+    result = await hass.config_entries.flow.async_configure(flow_id, {CONF_PASSWORD: PASSWORD})
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "cannot_connect"
+
+
+async def test_duplicate_email_aborts_before_sending(
+    hass: HomeAssistant, pawport: FakePawport, config_entry: MockConfigEntry
+) -> None:
+    config_entry.add_to_hass(hass)
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_EMAIL: EMAIL})
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert pawport.codes_sent == []
+
+
+async def test_duplicate_account_by_user_id(
+    hass: HomeAssistant, pawport: FakePawport, config_entry: MockConfigEntry
+) -> None:
+    """A second email alias for the same account still collides on user ID."""
+    config_entry.add_to_hass(hass)
+    flow_id = await start(hass, "alias@example.com")
+    await choose(hass, flow_id, "password")
+    result = await hass.config_entries.flow.async_configure(flow_id, {CONF_PASSWORD: PASSWORD})
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+
+
+async def test_reauth_with_code(
+    hass: HomeAssistant, pawport: FakePawport, password_entry: MockConfigEntry
+) -> None:
+    await setup_entry(hass, password_entry)
+    result = await password_entry.start_reauth_flow(hass)
+    assert result["step_id"] == "method"
+    result = await choose(hass, result["flow_id"], "send_code")
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_CODE: CODE})
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reauth_successful"
+    assert password_entry.data[CONF_AUTH_TOKEN] == NEW_TOKEN
+    # Signing in with a code drops the old password: it may be why reauth was needed.
+    assert CONF_PASSWORD not in password_entry.data
+
+
+async def test_reauth_wrong_account(
+    hass: HomeAssistant, pawport: FakePawport, config_entry: MockConfigEntry
+) -> None:
+    await setup_entry(hass, config_entry)
+    result = await config_entry.start_reauth_flow(hass)
+    pawport.context["userID"] = "someone-else"
+    pawport.valid_token = pawport.issue_token
+    result = await choose(hass, result["flow_id"], "password")
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PASSWORD: PASSWORD}
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "wrong_account"

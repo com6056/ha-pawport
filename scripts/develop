@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Run Home Assistant on http://localhost:8123 with this integration loaded
+# from the working tree. State lives in config/, which is gitignored apart
+# from configuration.yaml.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+mkdir -p config
+export PYTHONPATH="${PWD}${PYTHONPATH:+:${PYTHONPATH}}"
+uv run --locked hass --config config --debug

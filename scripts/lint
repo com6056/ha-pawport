@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Format, lint and type check. Fixes what it can in place.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+uv run --locked ruff format .
+uv run --locked ruff check . --fix
+uv run --locked mypy

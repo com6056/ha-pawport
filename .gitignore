@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+.coverage
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# scripts/develop state; only the configuration is tracked.
+config/*
+!config/configuration.yaml

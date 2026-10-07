@@ -1,0 +1,72 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sign in to Pawport",
+        "description": "Use the email address of your Pawport account. Google and Apple sign-in can't be used here; if your account uses one of them, try an emailed code.",
+        "data": {
+          "email": "Email"
+        }
+      },
+      "method": {
+        "title": "How do you want to sign in?",
+        "description": "Account: {email}",
+        "menu_options": {
+          "send_code": "Email me a sign-in code",
+          "password": "Use my password"
+        }
+      },
+      "code": {
+        "title": "Enter the sign-in code",
+        "description": "Pawport emailed a code to {email}.",
+        "data": {
+          "code": "Code"
+        }
+      },
+      "password": {
+        "title": "Enter your password",
+        "description": "The password for {email}. It is stored so the integration can sign in again on its own when its session expires.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "invalid_code": "That code is wrong or has expired.",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Account is already configured",
+      "cannot_connect": "Failed to connect",
+      "invalid_email": "Pawport did not accept that email address.",
+      "reauth_successful": "Re-authentication was successful",
+      "unknown": "Unexpected error",
+      "wrong_account": "You signed in to a different Pawport account than the one this entry belongs to."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "plugged_in": {
+        "name": "Plugged in"
+      }
+    },
+    "switch": {
+      "hold_open": {
+        "name": "Hold open"
+      }
+    }
+  },
+  "exceptions": {
+    "auth_failed": {
+      "message": "Pawport rejected the saved session. Sign in again to continue."
+    },
+    "command_failed": {
+      "message": "The door did not accept the command: {error}"
+    },
+    "update_failed": {
+      "message": "Could not update from Pawport: {error}"
+    }
+  }
+}

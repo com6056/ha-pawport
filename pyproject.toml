@@ -1,0 +1,74 @@
+# Development tooling only. The integration ships as custom_components/pawport
+# and has no runtime requirements beyond Home Assistant itself.
+
+[project]
+name = "ha-pawport"
+version = "0.0.0"
+requires-python = ">=3.14.2" # Home Assistant's floor
+
+[dependency-groups]
+dev = [
+    "homeassistant>=2026.9.4,<2026.10",
+    "mypy>=2.4,<3",
+    "pytest-cov>=7,<8",
+    "pytest-homeassistant-custom-component>=0.13.367,<0.14",
+    "ruff>=0.16.10,<0.17",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "B",   # flake8-bugbear
+    "BLE", # flake8-blind-except
+    "C4",  # flake8-comprehensions
+    "D",   # pydocstyle
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "PIE", # flake8-pie
+    "PGH", # pygrep-hooks
+    "RUF", # ruff-specific
+    "SIM", # flake8-simplify
+    "T20", # flake8-print
+    "UP",  # pyupgrade
+    "W",   # pycodestyle warnings
+]
+ignore = [
+    "D100", # module docstrings are optional
+    "D104", # package docstrings are optional
+    "D203", # conflicts with D211
+    "D213", # conflicts with D212
+    "E501", # the formatter owns line length
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
+known-first-party = ["custom_components.pawport"]
+combine-as-imports = true
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+files = ["custom_components/pawport"]
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["custom_components/pawport"]
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true
