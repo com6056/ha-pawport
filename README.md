@@ -1,6 +1,6 @@
 # Pawport for Home Assistant
 
-Control a [Pawport](https://pawport.com) smart pet door from Home Assistant: lock and unlock it, hold it open, and watch its battery and connection.
+Control a [Pawport](https://pawport.com) smart pet door from Home Assistant: lock it, hold it open, change its settings, and see where your pets are and when they last went through.
 
 > [!WARNING]
 > Early development. This integration uses the same cloud API as the Pawport app, which Pawport does not document, and it has not yet been run against a real door. Expect rough edges, and please open an issue with diagnostics if something looks wrong.
@@ -9,11 +9,13 @@ Control a [Pawport](https://pawport.com) smart pet door from Home Assistant: loc
 
 ## Supported devices
 
-The Pawport Smart Pet Door. Every door on the account is added, and doors added to the account later appear on their own.
+The Pawport Smart Pet Door and Smart Pet Tag.
 
 ## What you get
 
-For each door:
+Each door, pet and Smart Pet Tag on the account becomes a device. New ones appear on their own, and ones removed from the account are cleaned up.
+
+### Door
 
 | Entity | Type | Notes |
 | --- | --- | --- |
@@ -21,8 +23,35 @@ For each door:
 | Hold open | Switch | Holds the door open until turned off. |
 | Battery | Sensor | Percent charge. |
 | Charging | Binary sensor | |
-| Plugged in | Binary sensor | Diagnostic. |
-| Connectivity | Binary sensor | Diagnostic. Off while the Pawport cloud cannot reach the door. |
+| Rain lock active / Lightning lock active | Binary sensor | On while a weather lock is holding the door shut. |
+| Plugged in, Connectivity | Binary sensor | Diagnostic. Connectivity is off while the Pawport cloud cannot reach the door. |
+| Firmware | Update | Shows when newer firmware is available. Install it from the Pawport app. |
+
+Settings, with the same choices the Pawport app offers:
+
+| Entity | Type | Range |
+| --- | --- | --- |
+| Sound, Lights, Panel buttons, Rain lock, Lightning lock | Switch | On or off. Panel buttons off disables the buttons on the door. |
+| Volume, Light brightness | Number | 0 to 5 |
+| Inside tag range, Outside tag range | Number | 1 to 5, about 1 to 5 feet |
+| Time to close | Select | 5, 10, 15 or 30 seconds |
+| Open angle | Select | 90° or 120° |
+
+### Pet
+
+| Entity | Type | Notes |
+| --- | --- | --- |
+| Location | Sensor | Inside or outside, from the last trip through a door. |
+| Last trip | Sensor | When the pet last went through a door. |
+| Trips outside today | Sensor | Resets at midnight in Home Assistant's time zone. |
+| Time outside today | Sensor | |
+
+### Smart Pet Tag
+
+| Entity | Type | Notes |
+| --- | --- | --- |
+| Battery | Sensor | Diagnostic. |
+| Connectivity | Binary sensor | Diagnostic. |
 
 ## Installation
 
@@ -50,7 +79,8 @@ The integration polls the Pawport cloud every 30 seconds and right after every c
 
 ## Known limitations
 
-- Pet activity, tags, schedules, and door settings (open time, sensor range, LEDs, sound, weather locks) are not exposed yet.
+- Lock and light schedules, light color, and per-pet door access are not exposed yet; manage them in the Pawport app.
+- Firmware updates are shown but not installed from Home Assistant.
 - State can lag the door by up to 30 seconds when it changes outside Home Assistant.
 
 ## Troubleshooting

@@ -238,3 +238,11 @@ def test_door_state_bool_coercions() -> None:
     assert state.locked is True
     assert state.battery_level == 55
     assert DoorState.from_api({"doorID": "d", "batteryChargeLevel": True}).battery_level is None
+
+
+def test_door_state_app_encodings() -> None:
+    """Battery is capped at 100 and brightness loses the door's +128 flag, as in the app."""
+    state = DoorState.from_api({"doorID": "d", "batteryChargeLevel": 104, "ledBrightness": 133})
+    assert state.battery_level == 100
+    assert state.led_brightness == 5
+    assert DoorState.from_api({"doorID": "d", "ledBrightness": 3}).led_brightness == 3

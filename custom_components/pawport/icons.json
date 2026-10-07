@@ -6,6 +6,75 @@
         "state": {
           "off": "mdi:door-closed"
         }
+      },
+      "sound": {
+        "default": "mdi:volume-high",
+        "state": {
+          "off": "mdi:volume-off"
+        }
+      },
+      "lights": {
+        "default": "mdi:led-on",
+        "state": {
+          "off": "mdi:led-off"
+        }
+      },
+      "panel_buttons": {
+        "default": "mdi:gesture-tap-button"
+      },
+      "rain_lock": {
+        "default": "mdi:weather-pouring"
+      },
+      "lightning_lock": {
+        "default": "mdi:weather-lightning"
+      }
+    },
+    "binary_sensor": {
+      "rain_lock_active": {
+        "default": "mdi:weather-pouring"
+      },
+      "lightning_lock_active": {
+        "default": "mdi:weather-lightning"
+      }
+    },
+    "number": {
+      "volume": {
+        "default": "mdi:volume-medium"
+      },
+      "brightness": {
+        "default": "mdi:brightness-6"
+      },
+      "inside_range": {
+        "default": "mdi:home-import-outline"
+      },
+      "outside_range": {
+        "default": "mdi:home-export-outline"
+      }
+    },
+    "select": {
+      "time_to_close": {
+        "default": "mdi:timer-outline"
+      },
+      "open_angle": {
+        "default": "mdi:angle-acute"
+      }
+    },
+    "sensor": {
+      "location": {
+        "default": "mdi:paw",
+        "state": {
+          "inside": "mdi:home",
+          "outside": "mdi:tree"
+        }
+      },
+      "last_trip": {
+        "default": "mdi:door-open"
+      },
+      "trips_today": {
+        "default": "mdi:counter"
+      },
+      "time_outside_today": {
+        "default": "mdi:timer-sand"
       }
     }
   }

@@ -16,7 +16,7 @@ from pytest_homeassistant_custom_component.typing import WebSocketGenerator
 from custom_components.pawport.api import GRAPHQL_URL
 from custom_components.pawport.const import CONF_AUTH_TOKEN, DOMAIN, SCAN_INTERVAL
 
-from .conftest import DOOR_ID, NEW_TOKEN, FakePawport, setup_entry
+from .conftest import DOOR_ID, NEW_TOKEN, PET_ID, TAG_ID, FakePawport, setup_entry
 
 
 async def tick(
@@ -162,7 +162,31 @@ async def test_entities_registered(
 ) -> None:
     await setup_entry(hass, config_entry)
     entities = er.async_entries_for_config_entry(er.async_get(hass), config_entry.entry_id)
+    door_keys = (
+        "lock",
+        "hold_open",
+        "sound",
+        "lights",
+        "panel_buttons",
+        "rain_lock",
+        "lightning_lock",
+        "volume",
+        "brightness",
+        "inside_range",
+        "outside_range",
+        "time_to_close",
+        "open_angle",
+        "battery",
+        "charging",
+        "plugged_in",
+        "online",
+        "rain_lock_active",
+        "lightning_lock_active",
+        "firmware",
+    )
+    pet_keys = ("location", "last_trip", "trips_today", "time_outside_today")
     assert sorted(e.unique_id for e in entities) == sorted(
-        f"{DOOR_ID}_{key}"
-        for key in ("lock", "hold_open", "battery", "charging", "plugged_in", "online")
+        [f"{DOOR_ID}_{key}" for key in door_keys]
+        + [f"pet_{PET_ID}_{key}" for key in pet_keys]
+        + [f"tag_{TAG_ID}_{key}" for key in ("battery", "online")]
     )

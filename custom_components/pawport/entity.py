@@ -1,4 +1,4 @@
-"""Base entity for Pawport doors."""
+"""Base entities for Pawport doors, pets, and tags."""
 
 from __future__ import annotations
 
@@ -12,22 +12,51 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import PawportCoordinator
-from .models import Door, DoorState
+from .models import Account, Door, DoorState, Pet, Tag
 
 
-class PawportDoorEntity(CoordinatorEntity[PawportCoordinator]):
-    """An entity belonging to one door."""
+def pet_identifier(pet_id: str) -> str:
+    """Return the device identifier for a pet."""
+    return f"pet_{pet_id}"
+
+
+def tag_identifier(tag_id: str) -> str:
+    """Return the device identifier for a tag."""
+    return f"tag_{tag_id}"
+
+
+def device_identifiers(account: Account) -> set[str]:
+    """Return the identifier of every device the account currently has."""
+    return (
+        set(account.doors)
+        | {pet_identifier(p) for p in account.pets}
+        | {tag_identifier(t) for t in account.tags}
+    )
+
+
+class PawportEntity(CoordinatorEntity[PawportCoordinator]):
+    """Base for every Pawport entity."""
 
     _attr_has_entity_name = True
+
+    def __init__(
+        self, coordinator: PawportCoordinator, object_id: str, description: EntityDescription
+    ) -> None:
+        """Initialize for one door, pet, or tag."""
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_unique_id = f"{object_id}_{description.key}"
+
+
+class PawportDoorEntity(PawportEntity):
+    """An entity belonging to one door."""
 
     def __init__(
         self, coordinator: PawportCoordinator, door_id: str, description: EntityDescription
     ) -> None:
         """Initialize for one door."""
-        super().__init__(coordinator)
-        self.entity_description = description
+        super().__init__(coordinator, door_id, description)
         self.door_id = door_id
-        self._attr_unique_id = f"{door_id}_{description.key}"
         door = self.door
         state = door.state if door else None
         self._attr_device_info = DeviceInfo(
@@ -54,6 +83,88 @@ class PawportDoorEntity(CoordinatorEntity[PawportCoordinator]):
         """Available while the poll succeeds and the door reports state."""
         return super().available and self.door_state is not None
 
+    async def async_send(self, command: str, arguments: dict[str, object]) -> None:
+        """Send a command to this door and refresh."""
+        await self.coordinator.async_command(
+            lambda: self.coordinator.client.send_door_command(self.door_id, command, arguments)
+        )
+
+
+class PawportPetEntity(PawportEntity):
+    """An entity belonging to one pet."""
+
+    def __init__(
+        self, coordinator: PawportCoordinator, pet_id: str, description: EntityDescription
+    ) -> None:
+        """Initialize for one pet."""
+        super().__init__(coordinator, pet_identifier(pet_id), description)
+        self.pet_id = pet_id
+        pet = self.pet
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, pet_identifier(pet_id))},
+            name=pet.name if pet else None,
+            model=pet.species if pet else None,
+        )
+
+    @property
+    def pet(self) -> Pet | None:
+        """Return this pet from the latest poll."""
+        return self.coordinator.data.pets.get(self.pet_id)
+
+    @property
+    def available(self) -> bool:
+        """Available while the poll succeeds and the pet is on the account."""
+        return super().available and self.pet is not None
+
+
+class PawportTagEntity(PawportEntity):
+    """An entity belonging to one Smart Pet Tag."""
+
+    def __init__(
+        self, coordinator: PawportCoordinator, tag_id: str, description: EntityDescription
+    ) -> None:
+        """Initialize for one tag."""
+        super().__init__(coordinator, tag_identifier(tag_id), description)
+        self.tag_id = tag_id
+        tag = self.tag
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, tag_identifier(tag_id))},
+            manufacturer=MANUFACTURER,
+            model="Smart Pet Tag",
+            name=tag.name if tag else None,
+        )
+
+    @property
+    def tag(self) -> Tag | None:
+        """Return this tag from the latest poll."""
+        return self.coordinator.data.tags.get(self.tag_id)
+
+    @property
+    def available(self) -> bool:
+        """Available while the poll succeeds and the tag is on the account."""
+        return super().available and self.tag is not None
+
+
+def async_add_new_entities(
+    coordinator: PawportCoordinator,
+    async_add_entities: AddConfigEntryEntitiesCallback,
+    ids: Callable[[Account], Iterable[str]],
+    factory: Callable[[str], Iterable[Entity]],
+) -> None:
+    """Add entities for every object ``ids`` yields, including ones added later."""
+    known: set[str] = set()
+
+    @callback
+    def _add_new() -> None:
+        new = set(ids(coordinator.data)) - known
+        if not new:
+            return
+        known.update(new)
+        async_add_entities(entity for object_id in sorted(new) for entity in factory(object_id))
+
+    _add_new()
+    coordinator.config_entry.async_on_unload(coordinator.async_add_listener(_add_new))
+
 
 def async_add_door_entities(
     coordinator: PawportCoordinator,
@@ -61,15 +172,4 @@ def async_add_door_entities(
     factory: Callable[[str], Iterable[Entity]],
 ) -> None:
     """Add entities for every door, including doors added to the account later."""
-    known: set[str] = set()
-
-    @callback
-    def _add_new() -> None:
-        new = set(coordinator.data.doors) - known
-        if not new:
-            return
-        known.update(new)
-        async_add_entities(entity for door_id in sorted(new) for entity in factory(door_id))
-
-    _add_new()
-    coordinator.config_entry.async_on_unload(coordinator.async_add_listener(_add_new))
+    async_add_new_entities(coordinator, async_add_entities, lambda a: a.doors, factory)

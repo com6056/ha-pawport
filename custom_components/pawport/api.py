@@ -38,7 +38,18 @@ query authDataGet {
       doorID behavior powerState batteryChargeLevel doorLocked
       firmwareVersion latestAvailableFirmwareVersion isFirmwareUpdateAvailable
       isPluggedIn isCharging offlineSince updatedAt
+      openTime leftAngle speakerVolume soundEnabled ledEnabled ledBrightness
+      insideRange outsideRange controlPanelLockout
+      rainLockEnabled lightningLockEnabled rainLockActive lightningLockActive
     }
+    pets {
+      petID name species { name }
+      latestActivity {
+        date timeOutsideTotal tripsOutside
+        activity { transits { doorID transitAt location } }
+      }
+    }
+    tags { tagID name petID batteryLevel isOnline }
   }
 }
 """

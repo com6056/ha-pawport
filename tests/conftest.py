@@ -43,6 +43,65 @@ DOOR_STATE: dict[str, Any] = {
     "isCharging": False,
     "offlineSince": None,
     "updatedAt": "2026-10-06T20:00:00.000Z",
+    "openTime": 10,
+    "leftAngle": 90,
+    "speakerVolume": 3,
+    "soundEnabled": True,
+    "ledEnabled": True,
+    "ledBrightness": 132,  # level 4 with the door's +128 flag
+    "insideRange": 2,
+    "outsideRange": 3,
+    "controlPanelLockout": False,
+    "rainLockEnabled": True,
+    "lightningLockEnabled": False,
+    "rainLockActive": False,
+    "lightningLockActive": False,
+}
+
+PET_ID = "pet-1"
+TAG_ID = "tag-1"
+ACTIVITY_DAY = "2026-10-06"
+
+PET: dict[str, Any] = {
+    "petID": PET_ID,
+    "name": "Biscuit",
+    "species": {"name": "Dog"},
+    "latestActivity": {
+        "date": ACTIVITY_DAY,
+        "timeOutsideTotal": 1800,
+        "tripsOutside": 1,
+        "activity": {
+            "transits": [
+                # Out at 10:00, back in at 10:30 (location is where the pet
+                # opened the door from: 1 inside, 2 outside).
+                {"doorID": DOOR_ID, "transitAt": "2026-10-06T17:30:00Z", "location": 2},
+                {"doorID": DOOR_ID, "transitAt": "2026-10-06T17:00:00Z", "location": 1},
+            ]
+        },
+    },
+}
+
+TAG: dict[str, Any] = {
+    "tagID": TAG_ID,
+    "name": "Biscuit's tag",
+    "petID": PET_ID,
+    "batteryLevel": 0.8,
+    "isOnline": True,
+}
+
+# sendDoorCommand command -> (argument, doorStates field) for plain settings.
+SETTINGS: dict[str, tuple[str, str]] = {
+    "set_sound_enabled": ("enable", "soundEnabled"),
+    "set_leds_enabled": ("enable", "ledEnabled"),
+    "set_control_panel_lockout": ("enable", "controlPanelLockout"),
+    "set_rain_lock_enabled": ("enable", "rainLockEnabled"),
+    "set_lightning_lock_enabled": ("enable", "lightningLockEnabled"),
+    "set_volume": ("volume", "speakerVolume"),
+    "set_brightness": ("ledBrightness", "ledBrightness"),
+    "set_inside_range": ("range", "insideRange"),
+    "set_outside_range": ("range", "outsideRange"),
+    "set_open_time": ("durationSeconds", "openTime"),
+    "set_left_angle": ("angle", "leftAngle"),
 }
 
 
@@ -53,6 +112,8 @@ def user_context() -> dict[str, Any]:
         "profile": {"emailAddress": EMAIL},
         "doors": [{"doorID": DOOR_ID, "name": "Dog Door", "homeID": "home-1"}],
         "doorStates": [copy.deepcopy(DOOR_STATE)],
+        "pets": [copy.deepcopy(PET)],
+        "tags": [copy.deepcopy(TAG)],
     }
 
 
@@ -152,6 +213,16 @@ class FakePawport:
             state["doorLocked"] = 1 if variables["arguments"]["locked"] else 0
         elif variables["command"] == "force_open":
             state["behavior"] = "force_open" if variables["arguments"]["forceOpen"] else None
+        elif variables["command"] in SETTINGS:
+            argument, state_field = SETTINGS[variables["command"]]
+            state[state_field] = variables["arguments"][argument]
+        else:
+            return self._respond(
+                method,
+                url,
+                200,
+                {"errors": [{"message": f"unknown command {variables['command']}"}]},
+            )
         return self._respond(method, url, 200, {"data": {"sendDoorCommand": True}})
 
 
