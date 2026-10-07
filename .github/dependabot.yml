@@ -11,3 +11,10 @@ updates:
     groups:
       dev:
         patterns: ["*"]
+    # pytest-homeassistant-custom-component releases track every Home Assistant
+    # beta and pin it exactly, so an automatic bump of either one can never
+    # resolve against the other. Bump them together, by hand, when a new Home
+    # Assistant release goes stable.
+    ignore:
+      - dependency-name: homeassistant
+      - dependency-name: pytest-homeassistant-custom-component
