@@ -13,7 +13,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from homeassistant.config_entries import SOURCE_REAUTH, ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    SOURCE_REAUTH,
+    SOURCE_RECONFIGURE,
+    ConfigFlow,
+    ConfigFlowResult,
+)
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
@@ -142,6 +147,25 @@ class PawportConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders={"email": self._email},
         )
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Sign in again, to switch method, change the password, or follow an email change.
+
+        The account itself cannot change: signing in to a different Pawport
+        account aborts, because entity and device IDs belong to this one.
+        """
+        entry = self._get_reconfigure_entry()
+        if user_input is not None:
+            self._email = user_input[CONF_EMAIL].strip()
+            return await self.async_step_method()
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=self.add_suggested_values_to_schema(
+                EMAIL_SCHEMA, {CONF_EMAIL: entry.data[CONF_EMAIL]}
+            ),
+        )
+
     async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
         """Start reauthentication for an expired session."""
         self._email = entry_data[CONF_EMAIL]
@@ -169,5 +193,10 @@ class PawportConfigFlow(ConfigFlow, domain=DOMAIN):
         if self.source == SOURCE_REAUTH:
             self._abort_if_unique_id_mismatch(reason="wrong_account")
             return self.async_update_reload_and_abort(self._get_reauth_entry(), data=data)
+        if self.source == SOURCE_RECONFIGURE:
+            self._abort_if_unique_id_mismatch(reason="wrong_account")
+            return self.async_update_reload_and_abort(
+                self._get_reconfigure_entry(), data=data, title=self._email
+            )
         self._abort_if_unique_id_configured()
         return self.async_create_entry(title=self._email, data=data)

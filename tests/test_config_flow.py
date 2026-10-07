@@ -173,3 +173,57 @@ async def test_reauth_wrong_account(
     )
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "wrong_account"
+
+
+async def test_reconfigure_switches_to_password(
+    hass: HomeAssistant, pawport: FakePawport, config_entry: MockConfigEntry
+) -> None:
+    await setup_entry(hass, config_entry)
+    result = await config_entry.start_reconfigure_flow(hass)
+    assert result["step_id"] == "reconfigure"
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_EMAIL: EMAIL})
+    assert result["step_id"] == "method"
+    result = await choose(hass, result["flow_id"], "password")
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PASSWORD: PASSWORD}
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    assert config_entry.data[CONF_PASSWORD] == PASSWORD
+    assert config_entry.data[CONF_AUTH_TOKEN] == NEW_TOKEN
+
+
+async def test_reconfigure_follows_email_change(
+    hass: HomeAssistant, pawport: FakePawport, config_entry: MockConfigEntry
+) -> None:
+    """A new address for the same account updates the entry and its title."""
+    await setup_entry(hass, config_entry)
+    result = await config_entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_EMAIL: "new@example.com"}
+    )
+    result = await choose(hass, result["flow_id"], "send_code")
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_CODE: CODE})
+    assert result["reason"] == "reconfigure_successful"
+    assert config_entry.data[CONF_EMAIL] == "new@example.com"
+    assert config_entry.title == "new@example.com"
+    assert pawport.codes_sent == ["new@example.com"]
+
+
+async def test_reconfigure_refuses_another_account(
+    hass: HomeAssistant, pawport: FakePawport, config_entry: MockConfigEntry
+) -> None:
+    await setup_entry(hass, config_entry)
+    result = await config_entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_EMAIL: "other@example.com"}
+    )
+    pawport.context["userID"] = "someone-else"
+    pawport.valid_token = pawport.issue_token
+    result = await choose(hass, result["flow_id"], "password")
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PASSWORD: PASSWORD}
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "wrong_account"
+    assert config_entry.data[CONF_EMAIL] == EMAIL

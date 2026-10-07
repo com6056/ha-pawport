@@ -29,6 +29,13 @@
         "data": {
           "password": "Password"
         }
+      },
+      "reconfigure": {
+        "title": "Sign in to Pawport again",
+        "description": "Use this to switch between an emailed code and a password, change the stored password, or follow a change to the account email. It must be the same Pawport account.",
+        "data": {
+          "email": "Email"
+        }
       }
     },
     "error": {
@@ -43,7 +50,8 @@
       "invalid_email": "Pawport did not accept that email address.",
       "reauth_successful": "Re-authentication was successful",
       "unknown": "Unexpected error",
-      "wrong_account": "You signed in to a different Pawport account than the one this entry belongs to."
+      "wrong_account": "You signed in to a different Pawport account than the one this entry belongs to.",
+      "reconfigure_successful": "Re-configuration was successful"
     }
   },
   "entity": {

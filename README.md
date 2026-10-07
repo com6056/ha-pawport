@@ -80,6 +80,69 @@ Copy `custom_components/pawport` from the [latest release](https://github.com/co
 
 Google and Apple sign-in can't be used: their sign-in tokens are only issued to Pawport's own app. If your account uses one of them, try the emailed code.
 
+To switch between a code and a password, change the stored password, or follow a change to the account's email, use **Reconfigure** from the integration's menu.
+
+## Use cases
+
+- Keep pets in when something outside makes the yard unsafe: a gate left open, a pool cover off, a delivery at the side door.
+- Get a notification when a pet goes out or comes back, or hasn't come back after dark.
+- Lock up when everyone leaves, or switch to a stricter lock schedule while you're away.
+- Track how long each pet spends outside, with Home Assistant's history and statistics.
+
+## Examples
+
+Lock the door while the backyard gate is open, and unlock it once the gate has been closed for a minute:
+
+```yaml
+automation:
+  - alias: Pet door follows the backyard gate
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.backyard_gate
+        to: "on"
+        id: opened
+      - trigger: state
+        entity_id: binary_sensor.backyard_gate
+        to: "off"
+        for: "00:01:00"
+        id: closed
+    actions:
+      - action: "lock.{{ 'lock' if trigger.id == 'opened' else 'unlock' }}"
+        target:
+          entity_id: lock.dog_door
+```
+
+Tell me when a pet comes in or goes out:
+
+```yaml
+automation:
+  - alias: Pet came in or went out
+    triggers:
+      - trigger: state
+        entity_id: sensor.biscuit_location
+        to: [inside, outside]
+    actions:
+      - action: notify.mobile_app_my_phone
+        data:
+          message: "Biscuit is {{ trigger.to_state.state }}."
+```
+
+Remind me if the door has been locked for an hour:
+
+```yaml
+automation:
+  - alias: Pet door still locked
+    triggers:
+      - trigger: state
+        entity_id: lock.dog_door
+        to: locked
+        for: "01:00:00"
+    actions:
+      - action: notify.mobile_app_my_phone
+        data:
+          message: The pet door has been locked for an hour.
+```
+
 ## How it updates
 
 The integration polls the Pawport cloud every 30 seconds and right after every command. It needs internet access; there is no local API.
