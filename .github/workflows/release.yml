@@ -1,37 +1,45 @@
 name: Release
 
-# Publish a release in the GitHub UI (or `gh release create vX.Y.Z
-# --generate-notes`) and this attaches pawport.zip, built with the release's
-# version in manifest.json. main keeps a 0.0.0 placeholder, so nobody bumps
-# version files by hand.
+# Push a tag to release: `git tag v1.2.3 && git push origin v1.2.3`. A tag with
+# a suffix (v1.2.3-beta.1) becomes a pre-release, which HACS offers only to
+# users who opt into betas. The release is created here with pawport.zip
+# already attached, built with the tag's version in manifest.json, because the
+# repo uses immutable releases: assets cannot be added once a release is out.
+# main keeps a 0.0.0 placeholder, so nobody bumps version files by hand.
 
 on:
-  release:
-    types: [published]
+  push:
+    tags: ["v*"]
 
 permissions: {}
 
 jobs:
-  zip:
-    name: Build pawport.zip
+  release:
+    name: Release
     runs-on: ubuntu-latest
     permissions:
-      contents: write # upload the release asset
+      contents: write # create the release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Set version from tag
         env:
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ github.ref_name }}
         run: |
           version="${TAG#v}"
           jq --arg v "$version" '.version = $v' custom_components/pawport/manifest.json > manifest.tmp
           mv manifest.tmp custom_components/pawport/manifest.json
       - name: Zip
         run: cd custom_components/pawport && zip -r "$GITHUB_WORKSPACE/pawport.zip" . -x '__pycache__/*'
-      - name: Upload
+      - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$TAG" pawport.zip --repo "$GITHUB_REPOSITORY" --clobber
+          TAG: ${{ github.ref_name }}
+        run: |
+          prerelease=()
+          if [[ "$TAG" == *-* ]]; then
+            prerelease=(--prerelease)
+          fi
+          gh release create "$TAG" pawport.zip --repo "$GITHUB_REPOSITORY" \
+            --verify-tag --generate-notes "${prerelease[@]}"

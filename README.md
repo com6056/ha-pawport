@@ -109,7 +109,7 @@ scripts/test      # tests with coverage
 scripts/develop   # run Home Assistant at http://localhost:8123 with this integration
 ```
 
-Releases come from publishing a GitHub release; a workflow attaches `pawport.zip` with the version set from the tag.
+Release by pushing a tag (`git tag v1.2.3 && git push origin v1.2.3`; a `-beta.N` suffix makes a pre-release). A workflow creates the release with `pawport.zip` attached and the version set from the tag. Releases are immutable once published.
 
 ## License
 
