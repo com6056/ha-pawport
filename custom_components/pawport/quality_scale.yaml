@@ -4,9 +4,7 @@ rules:
     status: exempt
     comment: No custom actions.
   appropriate-polling: done
-  brands:
-    status: todo
-    comment: brand/icon.png not added yet.
+  brands: done
   common-modules: done
   config-flow: done
   config-flow-test-coverage: done
