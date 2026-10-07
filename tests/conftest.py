@@ -89,6 +89,43 @@ TAG: dict[str, Any] = {
     "isOnline": True,
 }
 
+SCHEDULE_ID = "sched-1"
+
+LOCK_SCHEDULE: dict[str, Any] = {
+    "doorLockScheduleID": SCHEDULE_ID,
+    "doorID": DOOR_ID,
+    "name": "Night",
+    "isEnabled": True,
+    "startTime": "21:00",
+    "endTime": "06:00",
+    "permission": "IN_ONLY",
+    "days": {
+        "Mon": True,
+        "Tue": True,
+        "Wed": True,
+        "Thu": True,
+        "Fri": True,
+        "Sat": False,
+        "Sun": False,
+    },
+}
+
+LIGHT_SCHEDULE: dict[str, Any] = {
+    "doorID": DOOR_ID,
+    "isEnabled": False,
+    "startTime": "19:00",
+    "endTime": "07:00",
+    "days": {
+        "Mon": True,
+        "Tue": True,
+        "Wed": True,
+        "Thu": True,
+        "Fri": True,
+        "Sat": True,
+        "Sun": True,
+    },
+}
+
 # sendDoorCommand command -> (argument, doorStates field) for plain settings.
 SETTINGS: dict[str, tuple[str, str]] = {
     "set_sound_enabled": ("enable", "soundEnabled"),
@@ -114,6 +151,8 @@ def user_context() -> dict[str, Any]:
         "doorStates": [copy.deepcopy(DOOR_STATE)],
         "pets": [copy.deepcopy(PET)],
         "tags": [copy.deepcopy(TAG)],
+        "doorLockSchedules": [copy.deepcopy(LOCK_SCHEDULE)],
+        "doorLightSchedules": [copy.deepcopy(LIGHT_SCHEDULE)],
     }
 
 
@@ -207,6 +246,18 @@ class FakePawport:
         if operation == "authDataGet":
             return self._respond(method, url, 200, {"data": {"userContext": self.context}})
         variables = data["variables"]
+        if operation == "doorLockScheduleEnabledSet":
+            self.commands.append((operation, variables))
+            for schedule in self.context["doorLockSchedules"]:
+                if schedule["doorLockScheduleID"] == variables["doorLockScheduleID"]:
+                    schedule["isEnabled"] = variables["enabled"]
+            return self._respond(method, url, 200, {"data": {operation: True}})
+        if operation == "doorLightScheduleEnabledSet":
+            self.commands.append((operation, variables))
+            for schedule in self.context["doorLightSchedules"]:
+                if schedule["doorID"] == variables["doorID"]:
+                    schedule["isEnabled"] = variables["enabled"]
+            return self._respond(method, url, 200, {"data": {operation: True}})
         self.commands.append((variables["command"], variables["arguments"]))
         state = self.door_state()
         if variables["command"] == "door_lock":

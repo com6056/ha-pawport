@@ -37,6 +37,13 @@ Settings, with the same choices the Pawport app offers:
 | Time to close | Select | 5, 10, 15 or 30 seconds |
 | Open angle | Select | 90° or 120° |
 
+Schedules set up in the Pawport app:
+
+| Entity | Type | Notes |
+| --- | --- | --- |
+| Schedule *name* | Switch | One per lock schedule: turns it on or off. Attributes show its days, start and end, and what it allows (in only, out only, or locked). |
+| Light schedule | Switch | Turns the door's light schedule on or off. |
+
 ### Pet
 
 | Entity | Type | Notes |
@@ -79,7 +86,7 @@ The integration polls the Pawport cloud every 30 seconds and right after every c
 
 ## Known limitations
 
-- Lock and light schedules, light color, and per-pet door access are not exposed yet; manage them in the Pawport app.
+- Schedules can be turned on and off, but creating or editing them, light color, and per-pet door access stay in the Pawport app.
 - Firmware updates are shown but not installed from Home Assistant.
 - State can lag the door by up to 30 seconds when it changes outside Home Assistant.
 

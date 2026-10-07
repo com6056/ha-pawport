@@ -76,6 +76,42 @@
       },
       "lightning_lock": {
         "name": "Lightning lock"
+      },
+      "lock_schedule": {
+        "name": "Schedule {name}",
+        "state_attributes": {
+          "permission": {
+            "name": "Permission",
+            "state": {
+              "in_only": "In only",
+              "out_only": "Out only",
+              "no_transit": "Locked"
+            }
+          },
+          "start": {
+            "name": "Start"
+          },
+          "end": {
+            "name": "End"
+          },
+          "days": {
+            "name": "Days"
+          }
+        }
+      },
+      "light_schedule": {
+        "name": "Light schedule",
+        "state_attributes": {
+          "start": {
+            "name": "Start"
+          },
+          "end": {
+            "name": "End"
+          },
+          "days": {
+            "name": "Days"
+          }
+        }
       }
     },
     "number": {

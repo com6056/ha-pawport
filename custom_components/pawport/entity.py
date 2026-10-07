@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 
 from homeassistant.core import callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity, EntityDescription
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -150,13 +151,29 @@ def async_add_new_entities(
     async_add_entities: AddConfigEntryEntitiesCallback,
     ids: Callable[[Account], Iterable[str]],
     factory: Callable[[str], Iterable[Entity]],
+    *,
+    remove_gone: tuple[str, Callable[[str], str]] | None = None,
 ) -> None:
-    """Add entities for every object ``ids`` yields, including ones added later."""
+    """Add entities for every object ``ids`` yields, including ones added later.
+
+    Objects that own a device (doors, pets, tags) are cleaned up through the
+    device registry. For ones that do not, such as schedules, ``remove_gone``
+    names the entity platform and maps an object ID to its entity's unique ID,
+    and the entity is removed from the registry once the object disappears.
+    """
     known: set[str] = set()
 
     @callback
     def _add_new() -> None:
-        new = set(ids(coordinator.data)) - known
+        current = set(ids(coordinator.data))
+        if remove_gone is not None:
+            platform, unique_id = remove_gone
+            registry = er.async_get(coordinator.hass)
+            for gone in known - current:
+                if entity_id := registry.async_get_entity_id(platform, DOMAIN, unique_id(gone)):
+                    registry.async_remove(entity_id)
+            known.intersection_update(current)
+        new = current - known
         if not new:
             return
         known.update(new)

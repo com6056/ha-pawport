@@ -27,6 +27,12 @@
       },
       "lightning_lock": {
         "default": "mdi:weather-lightning"
+      },
+      "lock_schedule": {
+        "default": "mdi:calendar-lock"
+      },
+      "light_schedule": {
+        "default": "mdi:calendar-clock"
       }
     },
     "binary_sensor": {

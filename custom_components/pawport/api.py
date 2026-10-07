@@ -50,6 +50,14 @@ query authDataGet {
       }
     }
     tags { tagID name petID batteryLevel isOnline }
+    doorLockSchedules {
+      doorLockScheduleID doorID name isEnabled startTime endTime permission
+      days { Mon Tue Wed Thu Fri Sat Sun }
+    }
+    doorLightSchedules {
+      doorID isEnabled startTime endTime
+      days { Mon Tue Wed Thu Fri Sat Sun }
+    }
   }
 }
 """
@@ -57,6 +65,19 @@ query authDataGet {
 DOOR_COMMAND_MUTATION: Final = """
 mutation sendDoorCommand($command: String!, $doorID: String!, $arguments: json) {
   sendDoorCommand(command: $command, doorID: $doorID, arguments: $arguments)
+}
+"""
+
+
+LOCK_SCHEDULE_ENABLED_MUTATION: Final = """
+mutation doorLockScheduleEnabledSet($doorLockScheduleID: String!, $enabled: Boolean!) {
+  doorLockScheduleEnabledSet(doorLockScheduleID: $doorLockScheduleID, enabled: $enabled)
+}
+"""
+
+LIGHT_SCHEDULE_ENABLED_MUTATION: Final = """
+mutation doorLightScheduleEnabledSet($doorID: String!, $enabled: Boolean!) {
+  doorLightScheduleEnabledSet(doorID: $doorID, enabled: $enabled)
 }
 """
 
@@ -177,6 +198,26 @@ class PawportClient:
     async def set_held_open(self, door_id: str, held_open: bool) -> None:
         """Hold a door open, or release it."""
         await self.send_door_command(door_id, "force_open", {"forceOpen": held_open})
+
+    async def set_lock_schedule_enabled(self, schedule_id: str, enabled: bool) -> None:
+        """Turn a lock schedule on or off."""
+        data = await self._graphql(
+            "doorLockScheduleEnabledSet",
+            LOCK_SCHEDULE_ENABLED_MUTATION,
+            {"doorLockScheduleID": schedule_id, "enabled": enabled},
+        )
+        if data.get("doorLockScheduleEnabledSet") is False:
+            raise PawportApiError("Lock schedule change rejected")
+
+    async def set_light_schedule_enabled(self, door_id: str, enabled: bool) -> None:
+        """Turn a door's light schedule on or off."""
+        data = await self._graphql(
+            "doorLightScheduleEnabledSet",
+            LIGHT_SCHEDULE_ENABLED_MUTATION,
+            {"doorID": door_id, "enabled": enabled},
+        )
+        if data.get("doorLightScheduleEnabledSet") is False:
+            raise PawportApiError("Light schedule change rejected")
 
     def _adopt(self, session: PawportSession) -> PawportSession:
         self.auth_token = session.auth_token

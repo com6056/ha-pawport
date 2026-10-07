@@ -271,6 +271,70 @@ class Tag:
         )
 
 
+_DAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+
+def _days(value: Any) -> tuple[str, ...]:
+    """Return the enabled weekdays from a ``days`` object, Monday first."""
+    if not isinstance(value, dict):
+        return ()
+    return tuple(day for day in _DAYS if value.get(day) is True)
+
+
+@dataclass(frozen=True, slots=True)
+class LockSchedule:
+    """A schedule that restricts which way pets may pass during a window.
+
+    ``permission`` is the app's enum: ``IN_ONLY``, ``OUT_ONLY`` or
+    ``NO_TRANSIT``.
+    """
+
+    schedule_id: str
+    door_id: str
+    name: str
+    enabled: bool | None
+    start: str | None
+    end: str | None
+    days: tuple[str, ...]
+    permission: str | None
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> LockSchedule:
+        """Build from one ``doorLockSchedules`` element."""
+        return cls(
+            schedule_id=str(data["doorLockScheduleID"]),
+            door_id=str(data.get("doorID")),
+            name=data.get("name") or "Schedule",
+            enabled=_as_bool(data.get("isEnabled")),
+            start=data.get("startTime"),
+            end=data.get("endTime"),
+            days=_days(data.get("days")),
+            permission=data.get("permission"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class LightSchedule:
+    """A door's light schedule; each door has at most one."""
+
+    door_id: str
+    enabled: bool | None
+    start: str | None
+    end: str | None
+    days: tuple[str, ...]
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> LightSchedule:
+        """Build from one ``doorLightSchedules`` element."""
+        return cls(
+            door_id=str(data["doorID"]),
+            enabled=_as_bool(data.get("isEnabled")),
+            start=data.get("startTime"),
+            end=data.get("endTime"),
+            days=_days(data.get("days")),
+        )
+
+
 def _by_id[T](items: Any, key: str, build: Callable[[dict[str, Any]], T]) -> dict[str, T]:
     """Build a dict of models from a list, skipping entries without an ID."""
     result: dict[str, T] = {}
@@ -290,6 +354,8 @@ class Account:
     doors: dict[str, Door]
     pets: dict[str, Pet] = field(default_factory=dict)
     tags: dict[str, Tag] = field(default_factory=dict)
+    lock_schedules: dict[str, LockSchedule] = field(default_factory=dict)
+    light_schedules: dict[str, LightSchedule] = field(default_factory=dict)
     raw: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
@@ -316,5 +382,11 @@ class Account:
             doors=doors,
             pets=_by_id(user_context.get("pets"), "petID", Pet.from_api),
             tags=_by_id(user_context.get("tags"), "tagID", Tag.from_api),
+            lock_schedules=_by_id(
+                user_context.get("doorLockSchedules"), "doorLockScheduleID", LockSchedule.from_api
+            ),
+            light_schedules=_by_id(
+                user_context.get("doorLightSchedules"), "doorID", LightSchedule.from_api
+            ),
             raw=user_context,
         )

@@ -16,7 +16,7 @@ from pytest_homeassistant_custom_component.typing import WebSocketGenerator
 from custom_components.pawport.api import GRAPHQL_URL
 from custom_components.pawport.const import CONF_AUTH_TOKEN, DOMAIN, SCAN_INTERVAL
 
-from .conftest import DOOR_ID, NEW_TOKEN, PET_ID, TAG_ID, FakePawport, setup_entry
+from .conftest import DOOR_ID, NEW_TOKEN, PET_ID, SCHEDULE_ID, TAG_ID, FakePawport, setup_entry
 
 
 async def tick(
@@ -189,4 +189,5 @@ async def test_entities_registered(
         [f"{DOOR_ID}_{key}" for key in door_keys]
         + [f"pet_{PET_ID}_{key}" for key in pet_keys]
         + [f"tag_{TAG_ID}_{key}" for key in ("battery", "online")]
+        + [f"lock_schedule_{SCHEDULE_ID}", f"{DOOR_ID}_light_schedule"]
     )
