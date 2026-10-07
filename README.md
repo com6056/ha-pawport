@@ -1,9 +1,9 @@
 # Pawport for Home Assistant
 
-Control a [Pawport](https://pawport.com) smart pet door from Home Assistant: lock it, hold it open, change its settings, and see where your pets are and when they last went through.
+Control a [Pawport](https://pawport.com) smart pet door from Home Assistant. Lock it, hold it open, change its settings, and see where your pets are and when they last went through.
 
 > [!WARNING]
-> Early development. This integration uses the same cloud API as the Pawport app, which Pawport does not document, and it has not yet been run against a real door. Expect rough edges, and please open an issue with diagnostics if something looks wrong.
+> This is early! It uses the same cloud API as the Pawport app, which Pawport doesn't document, and it hasn't been run against a real door yet. Expect rough edges, and please open an issue with diagnostics if anything looks off.
 >
 > Not affiliated with or endorsed by Pawport.
 
@@ -19,19 +19,21 @@ Each door, pet and Smart Pet Tag on the account becomes a device. New ones appea
 
 | Entity | Type | Notes |
 | --- | --- | --- |
-| Door | Lock | The same lock as the Pawport app. |
-| Hold open | Switch | Holds the door open until turned off. |
-| Battery | Sensor | Percent charge. |
+| Door | Lock | Same lock as in the Pawport app |
+| Hold open | Switch | Holds the door open until you turn it off |
+| Battery | Sensor | Percent charge |
 | Charging | Binary sensor | |
-| Rain lock active / Lightning lock active | Binary sensor | On while a weather lock is holding the door shut. |
-| Plugged in, Connectivity | Binary sensor | Diagnostic. Connectivity is off while the Pawport cloud cannot reach the door. |
-| Firmware | Update | Shows when newer firmware is available. Install it from the Pawport app. |
+| Plugged in | Binary sensor | |
+| Connectivity | Binary sensor | Off while the Pawport cloud can't reach the door |
+| Rain lock active, Lightning lock active | Binary sensor | On while a weather lock is holding the door shut |
+| Firmware | Update | Shows when new firmware is out (install it from the Pawport app) |
 
 Settings, with the same choices the Pawport app offers:
 
 | Entity | Type | Range |
 | --- | --- | --- |
-| Sound, Lights, Panel buttons, Rain lock, Lightning lock | Switch | On or off. Panel buttons off disables the buttons on the door. |
+| Sound, Lights, Rain lock, Lightning lock | Switch | On or off |
+| Panel buttons | Switch | Off disables the buttons on the door |
 | Volume, Light brightness | Number | 0 to 5 |
 | Inside tag range, Outside tag range | Number | 1 to 5, about 1 to 5 feet |
 | Time to close | Select | 5, 10, 15 or 30 seconds |
@@ -41,24 +43,24 @@ Schedules set up in the Pawport app:
 
 | Entity | Type | Notes |
 | --- | --- | --- |
-| Schedule *name* | Switch | One per lock schedule: turns it on or off. Attributes show its days, start and end, and what it allows (in only, out only, or locked). |
-| Light schedule | Switch | Turns the door's light schedule on or off. |
+| Schedule *name* | Switch | One per lock schedule, to turn it on or off. Its attributes show the days, the time window, and what it allows (in only, out only, or locked) |
+| Light schedule | Switch | Turns the door's light schedule on or off |
 
 ### Pet
 
 | Entity | Type | Notes |
 | --- | --- | --- |
-| Location | Sensor | Inside or outside, from the last trip through a door. |
-| Last trip | Sensor | When the pet last went through a door. |
-| Trips outside today | Sensor | Resets at midnight in Home Assistant's time zone. |
+| Location | Sensor | Inside or outside, going by the last trip through a door |
+| Last trip | Sensor | When the pet last went through a door |
+| Trips outside today | Sensor | Resets at midnight in Home Assistant's time zone |
 | Time outside today | Sensor | |
 
 ### Smart Pet Tag
 
 | Entity | Type | Notes |
 | --- | --- | --- |
-| Battery | Sensor | Diagnostic. |
-| Connectivity | Binary sensor | Diagnostic. |
+| Battery | Sensor | |
+| Connectivity | Binary sensor | |
 
 ## Installation
 
@@ -78,13 +80,13 @@ Copy `custom_components/pawport` from the [latest release](https://github.com/co
 - **Email me a sign-in code** (what the Pawport app does). If the session ever expires, Home Assistant asks you to sign in again.
 - **Use my password**, if your account has one. The password is stored so the integration can sign in again on its own when the session expires.
 
-Google and Apple sign-in can't be used: their sign-in tokens are only issued to Pawport's own app. If your account uses one of them, try the emailed code.
+Google and Apple sign-in won't work here, since their sign-in tokens only go to Pawport's own app. If your account uses one of them, try the emailed code.
 
 To switch between a code and a password, change the stored password, or follow a change to the account's email, use **Reconfigure** from the integration's menu.
 
 ## Use cases
 
-- Keep pets in when something outside makes the yard unsafe: a gate left open, a pool cover off, a delivery at the side door.
+- Keep pets in when something makes the yard unsafe, like a gate left open, the pool cover off, or a delivery at the side door.
 - Get a notification when a pet goes out or comes back, or hasn't come back after dark.
 - Lock up when everyone leaves, or switch to a stricter lock schedule while you're away.
 - Track how long each pet spends outside, with Home Assistant's history and statistics.
@@ -145,7 +147,7 @@ automation:
 
 ## How it updates
 
-The integration polls the Pawport cloud every 30 seconds and right after every command. It needs internet access; there is no local API.
+The integration polls the Pawport cloud every 30 seconds and right after every command. There's no local API, so it needs internet access.
 
 ## Known limitations
 
@@ -155,7 +157,7 @@ The integration polls the Pawport cloud every 30 seconds and right after every c
 
 ## Troubleshooting
 
-- **Download diagnostics** from the integration's menu. Tokens and your email are removed automatically.
+- **Download diagnostics** from the integration's menu. Tokens and your email are stripped out automatically.
 - To enable debug logging:
 
   ```yaml
@@ -179,7 +181,7 @@ scripts/test      # tests with coverage
 scripts/develop   # run Home Assistant at http://localhost:8123 with this integration
 ```
 
-Release by pushing a tag (`git tag v1.2.3 && git push origin v1.2.3`; a `-beta.N` suffix makes a pre-release). A workflow creates the release with `pawport.zip` attached and the version set from the tag. Releases are immutable once published.
+Release by pushing a tag, like `git tag v1.2.3 && git push origin v1.2.3` (a `-beta.N` suffix makes it a pre-release). A workflow creates the release with `pawport.zip` attached and the version set from the tag. Releases can't be changed once they're out.
 
 ## License
 

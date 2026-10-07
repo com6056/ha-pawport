@@ -27,7 +27,7 @@ body:
       label: Diagnostics
       description: >-
         Settings > Devices & services > Pawport > three dots > Download diagnostics.
-        Tokens and your email are removed automatically.
+        Tokens and your email are stripped out automatically.
       render: json
   - type: textarea
     id: logs

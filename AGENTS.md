@@ -17,8 +17,8 @@ Notes for coding agents (and people) working in this repo. User-facing docs are 
 ## Rules
 
 - `api.py` and `models.py` import nothing from Home Assistant. Keep it that way, so the client can move to a library unchanged.
-- The API is unofficial. Command shapes, ranges and units come from how the Pawport app itself builds and renders them; note that source in a comment when adding one. The models treat every field as optional: a missing key must cost one entity, not the whole poll.
-- Translations live only in `translations/en.json`, as literal text. Custom integrations do not get `strings.json` or `[%key:...]` references resolved.
+- The API is unofficial. Command shapes, ranges and units come from how the Pawport app itself builds and renders them; note that source in a comment when adding one. The models treat every field as optional, so a missing key costs one entity, not the whole poll.
+- Translations live only in `translations/en.json`, as literal text. Custom integrations don't get `strings.json` or `[%key:...]` references resolved.
 - New behaviour comes with tests through `FakePawport`, not by mocking the client. Coverage floor is in `pyproject.toml`.
 - `quality_scale.yaml` tracks the HA Integration Quality Scale. Update it when a rule's status changes.
 - Reverse-engineering material (app dumps, captures) is never committed here.

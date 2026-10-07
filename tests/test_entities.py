@@ -92,7 +92,7 @@ async def test_command_failure(
     pawport.overrides["sendDoorCommand"] = AiohttpClientMockResponse(
         "post", GRAPHQL_URL, json={"data": {"sendDoorCommand": False}}
     )
-    with pytest.raises(HomeAssistantError, match="did not accept"):
+    with pytest.raises(HomeAssistantError, match="didn't accept"):
         await call(hass, LOCK_DOMAIN, SERVICE_UNLOCK, LOCK)
     assert hass.states.get(LOCK).state == "locked"
 

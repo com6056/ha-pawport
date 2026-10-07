@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Sign in to Pawport",
-        "description": "Use the email address of your Pawport account. Google and Apple sign-in can't be used here; if your account uses one of them, try an emailed code.",
+        "description": "Use your Pawport account's email. Google and Apple sign-in won't work here, so if your account uses one of them, try an emailed code.",
         "data": {
           "email": "Email"
         }
@@ -25,14 +25,14 @@
       },
       "password": {
         "title": "Enter your password",
-        "description": "The password for {email}. It is stored so the integration can sign in again on its own when its session expires.",
+        "description": "The password for {email}. It's saved so the integration can sign back in on its own when its session expires.",
         "data": {
           "password": "Password"
         }
       },
       "reconfigure": {
         "title": "Sign in to Pawport again",
-        "description": "Use this to switch between an emailed code and a password, change the stored password, or follow a change to the account email. It must be the same Pawport account.",
+        "description": "Switch between an emailed code and a password, change the saved password, or follow a change to the account's email. It has to be the same Pawport account.",
         "data": {
           "email": "Email"
         }
@@ -47,7 +47,7 @@
     "abort": {
       "already_configured": "Account is already configured",
       "cannot_connect": "Failed to connect",
-      "invalid_email": "Pawport did not accept that email address.",
+      "invalid_email": "Pawport didn't accept that email address.",
       "reauth_successful": "Re-authentication was successful",
       "unknown": "Unexpected error",
       "wrong_account": "You signed in to a different Pawport account than the one this entry belongs to.",
@@ -178,10 +178,10 @@
       "message": "Pawport rejected the saved session. Sign in again to continue."
     },
     "command_failed": {
-      "message": "The door did not accept the command: {error}"
+      "message": "The door didn't accept the command: {error}"
     },
     "update_failed": {
-      "message": "Could not update from Pawport: {error}"
+      "message": "Couldn't update from Pawport: {error}"
     }
   }
 }
