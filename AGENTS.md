@@ -11,7 +11,7 @@ Notes for coding agents (and people) working in this repo. User-facing docs are 
 | `custom_components/pawport/coordinator.py` | 30s poll, door commands, silent re-sign-in with a stored password. |
 | `custom_components/pawport/entity.py` | Door, pet and tag base entities, and discovery of ones added later. |
 | `custom_components/pawport/{switch,number,select}.py` | Door settings, each a description naming its `sendDoorCommand` command and argument. |
-| `custom_components/pawport/config_flow.py` | Email, then code or password; reauth reuses the same steps. |
+| `custom_components/pawport/config_flow.py` | Email, then the emailed code; the password is offered only when Pawport says the account has one. Reauth and reconfigure reuse the same steps. |
 | `tests/conftest.py` | `FakePawport`, an in-memory cloud the tests run the real client against. |
 
 ## Rules

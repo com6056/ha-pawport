@@ -170,6 +170,8 @@ class FakePawport:
         self.issue_token = NEW_TOKEN
         self.code = CODE
         self.password = PASSWORD
+        # Most accounts have no password: the app offers no way to set one.
+        self.password_supported = False
         self.overrides: dict[str, AiohttpClientMockResponse | Exception] = {}
         self.commands: list[tuple[str, dict[str, Any]]] = []
         self.codes_sent: list[str] = []
@@ -202,7 +204,7 @@ class FakePawport:
             return override
         if path == "/user":
             self.codes_sent.append(data["emailAddress"])
-            return self._respond(method, url, 200, {"message": "Verification code sent"})
+            return self._respond(method, url, 200, {"passwordSupported": self.password_supported})
         if path == "/user/verify":
             if data["verificationCode"] != self.code:
                 return self._respond(

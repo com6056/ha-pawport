@@ -80,8 +80,10 @@ def test_parse_session_without_token_names_keys(payload: Any) -> None:
 
 async def test_sign_in_with_code(client: PawportClient, pawport: FakePawport) -> None:
     client.auth_token = None
-    await client.request_email_code(EMAIL)
-    assert pawport.codes_sent == [EMAIL]
+    assert await client.request_email_code(EMAIL) is False
+    pawport.password_supported = True
+    assert await client.request_email_code(EMAIL) is True
+    assert pawport.codes_sent == [EMAIL, EMAIL]
     session = await client.verify_email_code(EMAIL, f" {CODE} ")
     assert session.auth_token == NEW_TOKEN
     assert client.auth_token == NEW_TOKEN

@@ -3,16 +3,16 @@
     "step": {
       "user": {
         "title": "Sign in to Pawport",
-        "description": "Use your Pawport account's email. Google and Apple sign-in won't work here, so if your account uses one of them, try an emailed code.",
+        "description": "Use your Pawport account's email, and Pawport will email you a sign-in code. Google and Apple sign-in won't work here, so if your account uses one of them, the emailed code is still the way in.",
         "data": {
           "email": "Email"
         }
       },
       "method": {
-        "title": "How do you want to sign in?",
-        "description": "Account: {email}",
+        "title": "Sign in to Pawport",
+        "description": "Pawport emailed a code to {email}. Your account also has a password, if you'd rather use that.",
         "menu_options": {
-          "send_code": "Email me a sign-in code",
+          "code": "Enter the emailed code",
           "password": "Use my password"
         }
       },
@@ -25,14 +25,14 @@
       },
       "password": {
         "title": "Enter your password",
-        "description": "The password for {email}. It's saved so the integration can sign back in on its own if its session ever ends. Accounts made with an emailed code don't have a password, so use a code for those.",
+        "description": "The password for {email}. It's saved so the integration can sign back in on its own if its session ever ends.",
         "data": {
           "password": "Password"
         }
       },
       "reconfigure": {
         "title": "Sign in to Pawport again",
-        "description": "Switch between an emailed code and a password, change the saved password, or follow a change to the account's email. It has to be the same Pawport account.",
+        "description": "Sign in again, for example to follow a change to the account's email or switch to your password. Pawport will email you a code. It has to be the same Pawport account.",
         "data": {
           "email": "Email"
         }

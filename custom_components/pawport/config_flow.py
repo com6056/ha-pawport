@@ -1,11 +1,13 @@
 """Config flow for Pawport.
 
-Pawport signs in with an emailed one-time code or, for accounts that set
-one, a password. Google and Apple sign-in are not supported: their ID tokens
-are issued to Pawport's own app and cannot be obtained from Home Assistant.
+Pawport signs in with an emailed one-time code. Asking for the code also says
+whether the account has a password, and only then is a password offered,
+since the app gives most accounts no way to set one. Google and Apple sign-in
+are not supported: their ID tokens are issued to Pawport's own app and cannot
+be obtained from Home Assistant.
 
-A password is stored so an expired token can be replaced silently; with a
-code, an expired token means a reauthentication prompt.
+A password is stored so a rejected token can be replaced silently; with a
+code, a rejected token means a reauthentication prompt.
 """
 
 from __future__ import annotations
@@ -45,7 +47,7 @@ CODE_SCHEMA = vol.Schema({vol.Required(CONF_CODE): str})
 PASSWORD_SCHEMA = vol.Schema(
     {vol.Required(CONF_PASSWORD): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))}
 )
-SIGN_IN_METHODS = ["send_code", "password"]
+SIGN_IN_METHODS = ["code", "password"]
 
 
 class PawportConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -57,6 +59,7 @@ class PawportConfigFlow(ConfigFlow, domain=DOMAIN):
         """Initialize."""
         self._email = ""
         self._client: PawportClient | None = None
+        self._password_supported = False
 
     @property
     def client(self) -> PawportClient:
@@ -72,11 +75,11 @@ class PawportConfigFlow(ConfigFlow, domain=DOMAIN):
             # Before anything is emailed: a code for an account that is
             # already set up could only end in already_configured.
             self._async_abort_entries_match({CONF_EMAIL: self._email})
-            return await self.async_step_method()
+            return await self.async_step_send_code()
         return self.async_show_form(step_id="user", data_schema=EMAIL_SCHEMA)
 
     async def async_step_method(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Choose between an emailed code and a password."""
+        """Offer the password as an alternative, for accounts that have one."""
         return self.async_show_menu(
             step_id="method",
             menu_options=SIGN_IN_METHODS,
@@ -86,9 +89,9 @@ class PawportConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_send_code(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Email a sign-in code, then ask for it."""
+        """Email a sign-in code, then ask for it (or offer the password)."""
         try:
-            await self.client.request_email_code(self._email)
+            self._password_supported = await self.client.request_email_code(self._email)
         except PawportConnectionError:
             return self.async_abort(reason="cannot_connect")
         except PawportAuthError:
@@ -96,6 +99,8 @@ class PawportConfigFlow(ConfigFlow, domain=DOMAIN):
         except PawportError:
             LOGGER.exception("Unexpected error requesting a sign-in code")
             return self.async_abort(reason="unknown")
+        if self._password_supported:
+            return await self.async_step_method()
         return await self.async_step_code()
 
     async def async_step_code(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -158,7 +163,7 @@ class PawportConfigFlow(ConfigFlow, domain=DOMAIN):
         entry = self._get_reconfigure_entry()
         if user_input is not None:
             self._email = user_input[CONF_EMAIL].strip()
-            return await self.async_step_method()
+            return await self.async_step_send_code()
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=self.add_suggested_values_to_schema(
@@ -169,7 +174,7 @@ class PawportConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
         """Start reauthentication for an expired session."""
         self._email = entry_data[CONF_EMAIL]
-        return await self.async_step_method()
+        return await self.async_step_send_code()
 
     async def _async_finish(
         self, session: PawportSession, *, password: str | None

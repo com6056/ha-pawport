@@ -152,9 +152,15 @@ class PawportClient:
         self._session = session
         self.auth_token = auth_token
 
-    async def request_email_code(self, email: str) -> None:
-        """Ask Pawport to email a one-time sign-in code."""
-        await self._rest("/api/public/auth/user", {"emailAddress": email})
+    async def request_email_code(self, email: str) -> bool:
+        """Ask Pawport to email a one-time sign-in code.
+
+        Returns whether the account also has a password. The app offers no way
+        to set one, so for most accounts this is False and the code is the only
+        way in.
+        """
+        payload = await self._rest("/api/public/auth/user", {"emailAddress": email})
+        return isinstance(payload, dict) and payload.get("passwordSupported") is True
 
     async def verify_email_code(self, email: str, code: str) -> PawportSession:
         """Exchange an emailed code for a session and adopt its token."""

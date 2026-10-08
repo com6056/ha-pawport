@@ -75,14 +75,13 @@ Copy `custom_components/pawport` from the [latest release](https://github.com/co
 
 ## Setup
 
-**Settings > Devices & services > Add integration > Pawport**, then enter your Pawport account's email and choose how to sign in:
+**Settings > Devices & services > Add integration > Pawport**, then enter your Pawport account's email. Pawport emails you a sign-in code, and that's it. The session doesn't expire, so you shouldn't need to sign in again unless Pawport ends it.
 
-- **Email me a sign-in code** (what the Pawport app does). If the session ever expires, Home Assistant asks you to sign in again.
-- **Use my password**, if your account has one. The password is stored so the integration can sign in again on its own when the session expires.
+If your account also has a password, you can use that instead of the code. It's saved so the integration can sign back in on its own. The Pawport app doesn't offer a way to set one, though, so most accounts sign in with the code.
 
-Google and Apple sign-in won't work here, since their sign-in tokens only go to Pawport's own app. If your account uses one of them, try the emailed code.
+Google and Apple sign-in won't work here, since their sign-in tokens only go to Pawport's own app. If your account uses one of them, the emailed code is still the way in.
 
-To switch between a code and a password, change the stored password, or follow a change to the account's email, use **Reconfigure** from the integration's menu.
+To follow a change to the account's email, or to switch to a password, use **Reconfigure** from the integration's menu.
 
 ## Use cases
 
