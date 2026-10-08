@@ -114,11 +114,12 @@ class PawportSession:
 def parse_session(payload: Any) -> PawportSession:
     """Extract the session from a sign-in response.
 
-    The app stores ``{authToken, refreshToken, expiresIn, issuedAt}``, but
-    the exact response envelope has not been observed on the wire yet, so a
-    ``data`` or ``session`` wrapper and an ``accessToken``/``token`` spelling
-    are accepted too. Anything else fails loudly, naming the keys it saw
-    (never their values) so a log is enough to fix the parser.
+    Pawport answers ``{authToken, refreshToken, expiresIn}`` (seen live in
+    October 2026), with ``expiresIn`` at the 32-bit maximum, so sessions do
+    not expire in practice. A ``data`` or ``session`` wrapper and an
+    ``accessToken``/``token`` spelling are accepted too, in case that ever
+    changes. Anything else fails loudly, naming the keys it saw (never their
+    values) so a log is enough to fix the parser.
     """
     candidates = [payload]
     if isinstance(payload, dict):

@@ -25,7 +25,7 @@
       },
       "password": {
         "title": "Enter your password",
-        "description": "The password for {email}. It's saved so the integration can sign back in on its own when its session expires.",
+        "description": "The password for {email}. It's saved so the integration can sign back in on its own if its session ever ends. Accounts made with an emailed code don't have a password, so use a code for those.",
         "data": {
           "password": "Password"
         }
