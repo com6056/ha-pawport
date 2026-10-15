@@ -28,7 +28,7 @@ from homeassistant.helpers.selector import (
     TextSelectorConfig,
     TextSelectorType,
 )
-import voluptuous as vol
+import probatio
 
 from .api import (
     PawportAuthError,
@@ -40,12 +40,16 @@ from .api import (
 )
 from .const import CONF_AUTH_TOKEN, CONF_CODE, CONF_REFRESH_TOKEN, DOMAIN, LOGGER
 
-EMAIL_SCHEMA = vol.Schema(
-    {vol.Required(CONF_EMAIL): TextSelector(TextSelectorConfig(type=TextSelectorType.EMAIL))}
+EMAIL_SCHEMA = probatio.Schema(
+    {probatio.Required(CONF_EMAIL): TextSelector(TextSelectorConfig(type=TextSelectorType.EMAIL))}
 )
-CODE_SCHEMA = vol.Schema({vol.Required(CONF_CODE): str})
-PASSWORD_SCHEMA = vol.Schema(
-    {vol.Required(CONF_PASSWORD): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))}
+CODE_SCHEMA = probatio.Schema({probatio.Required(CONF_CODE): str})
+PASSWORD_SCHEMA = probatio.Schema(
+    {
+        probatio.Required(CONF_PASSWORD): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.PASSWORD)
+        )
+    }
 )
 SIGN_IN_METHODS = ["code", "password"]
 
