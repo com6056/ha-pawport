@@ -48,7 +48,6 @@ def _number(
 
 NUMBERS: tuple[PawportNumberDescription, ...] = (
     _number("volume", 0, lambda s: s.speaker_volume, "set_volume", "volume"),
-    _number("brightness", 0, lambda s: s.led_brightness, "set_brightness", "ledBrightness"),
     # Tag detection distance; the app describes 1 as about a foot and 5 as about five.
     _number("inside_range", 1, lambda s: s.inside_range, "set_inside_range", "range"),
     _number("outside_range", 1, lambda s: s.outside_range, "set_outside_range", "range"),

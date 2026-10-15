@@ -208,8 +208,8 @@ def test_models_tolerate_missing_fields() -> None:
                     "doorID": "d1",
                     "doorLocked": None,
                     "batteryChargeLevel": "high",
-                    "isCharging": 1,
-                    "isPluggedIn": "yes",
+                    "chargerDetails": "two",
+                    "ledColor": {"red": 1, "green": 2},
                     "offlineSince": "2026-10-06T01:02:03Z",
                     "updatedAt": "not a date",
                 },
@@ -226,8 +226,12 @@ def test_models_tolerate_missing_fields() -> None:
     assert state is not None
     assert state.locked is None
     assert state.battery_level is None
-    assert state.is_charging is True
-    assert state.is_plugged_in is None
+    assert state.charger is None
+    assert state.has_battery is None
+    assert state.plugged_in is None
+    assert state.charging is None
+    assert state.led_color is None
+    assert door.sensors == {}
     assert state.online is False
     assert state.offline_since == datetime(2026, 10, 6, 1, 2, 3, tzinfo=UTC)
     assert state.updated_at is None
@@ -235,10 +239,11 @@ def test_models_tolerate_missing_fields() -> None:
 
 def test_door_state_bool_coercions() -> None:
     state = DoorState.from_api(
-        {"doorID": "d", "doorLocked": True, "batteryChargeLevel": 55.6, "isCharging": True}
+        {"doorID": "d", "doorLocked": True, "batteryChargeLevel": 55.6, "chargerDetails": 3.0}
     )
     assert state.locked is True
     assert state.battery_level == 55
+    assert state.charger == 3
     assert DoorState.from_api({"doorID": "d", "batteryChargeLevel": True}).battery_level is None
 
 
@@ -248,3 +253,59 @@ def test_door_state_app_encodings() -> None:
     assert state.battery_level == 100
     assert state.led_brightness == 5
     assert DoorState.from_api({"doorID": "d", "ledBrightness": 3}).led_brightness == 3
+
+
+@pytest.mark.parametrize(
+    ("charger", "has_battery", "plugged_in", "charging"),
+    [
+        (0, False, True, False),
+        (1, True, True, False),
+        (2, True, True, True),
+        (3, True, False, False),
+        (4, None, None, None),
+        (-1, None, None, None),
+    ],
+)
+def test_door_state_charger_details(
+    charger: int, has_battery: bool | None, plugged_in: bool | None, charging: bool | None
+) -> None:
+    """Power comes from chargerDetails, read the way the app reads it."""
+    state = DoorState.from_api(
+        {"doorID": "d", "chargerDetails": charger, "isPluggedIn": False, "isCharging": False}
+    )
+    assert state.has_battery is has_battery
+    assert state.plugged_in is plugged_in
+    assert state.charging is charging
+
+
+def test_door_state_led_color() -> None:
+    color = {"red": 94, "green": 225, "blue": 90}
+    assert DoorState.from_api({"doorID": "d", "ledColor": color}).led_color == (94, 225, 90)
+    clamped = {"red": 300, "green": -5, "blue": 12.7}
+    assert DoorState.from_api({"doorID": "d", "ledColor": clamped}).led_color == (255, 0, 12)
+    assert DoorState.from_api({"doorID": "d", "ledColor": "green"}).led_color is None
+
+
+def test_door_sensor_modules() -> None:
+    account = Account.from_api(
+        {
+            "userID": 1,
+            "doors": [
+                {
+                    "doorID": "d",
+                    "sensors": [
+                        {"sensorType": 1, "isConnected": True, "firmwareVersion": "2.2.7"},
+                        {"sensorType": 2, "isConnected": 0, "firmwareVersion": 227},
+                        {"isConnected": True},
+                        "junk",
+                    ],
+                }
+            ],
+        }
+    )
+    sensors = account.doors["d"].sensors
+    assert set(sensors) == {1, 2}
+    assert sensors[1].connected is True
+    assert sensors[1].firmware_version == "2.2.7"
+    assert sensors[2].connected is False
+    assert sensors[2].firmware_version is None

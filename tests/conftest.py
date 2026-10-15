@@ -39,8 +39,8 @@ DOOR_STATE: dict[str, Any] = {
     "firmwareVersion": "2.4.1",
     "latestAvailableFirmwareVersion": "2.4.1",
     "isFirmwareUpdateAvailable": False,
-    "isPluggedIn": False,
-    "isCharging": False,
+    # Plugged in with a battery fitted, not charging.
+    "chargerDetails": 1,
     "offlineSince": None,
     "updatedAt": "2026-10-06T20:00:00.000Z",
     "openTime": 10,
@@ -49,6 +49,7 @@ DOOR_STATE: dict[str, Any] = {
     "soundEnabled": True,
     "ledEnabled": True,
     "ledBrightness": 132,  # level 4 with the door's +128 flag
+    "ledColor": {"red": 94, "green": 225, "blue": 90},
     "insideRange": 2,
     "outsideRange": 3,
     "controlPanelLockout": False,
@@ -57,6 +58,12 @@ DOOR_STATE: dict[str, Any] = {
     "rainLockActive": False,
     "lightningLockActive": False,
 }
+
+# The real door lists its inside and outside sensor modules.
+SENSORS: list[dict[str, Any]] = [
+    {"sensorType": 1, "isConnected": True, "firmwareVersion": "2.2.7"},
+    {"sensorType": 2, "isConnected": False, "firmwareVersion": "2.2.7"},
+]
 
 PET_ID = "pet-1"
 TAG_ID = "tag-1"
@@ -147,7 +154,14 @@ def user_context() -> dict[str, Any]:
     return {
         "userID": USER_ID,
         "profile": {"emailAddress": EMAIL},
-        "doors": [{"doorID": DOOR_ID, "name": "Dog Door", "homeID": "home-1"}],
+        "doors": [
+            {
+                "doorID": DOOR_ID,
+                "name": "Dog Door",
+                "homeID": "home-1",
+                "sensors": copy.deepcopy(SENSORS),
+            }
+        ],
         "doorStates": [copy.deepcopy(DOOR_STATE)],
         "pets": [copy.deepcopy(PET)],
         "tags": [copy.deepcopy(TAG)],
@@ -266,6 +280,13 @@ class FakePawport:
             state["doorLocked"] = 1 if variables["arguments"]["locked"] else 0
         elif variables["command"] == "force_open":
             state["behavior"] = "force_open" if variables["arguments"]["forceOpen"] else None
+        elif variables["command"] == "set_color":
+            rgb = variables["arguments"]["rgbHex"]
+            state["ledColor"] = {
+                "red": int(rgb[0:2], 16),
+                "green": int(rgb[2:4], 16),
+                "blue": int(rgb[4:6], 16),
+            }
         elif variables["command"] in SETTINGS:
             argument, state_field = SETTINGS[variables["command"]]
             state[state_field] = variables["arguments"][argument]

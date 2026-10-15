@@ -13,12 +13,6 @@
           "off": "mdi:volume-off"
         }
       },
-      "lights": {
-        "default": "mdi:led-on",
-        "state": {
-          "off": "mdi:led-off"
-        }
-      },
       "panel_buttons": {
         "default": "mdi:gesture-tap-button"
       },
@@ -35,6 +29,14 @@
         "default": "mdi:calendar-clock"
       }
     },
+    "light": {
+      "lights": {
+        "default": "mdi:led-on",
+        "state": {
+          "off": "mdi:led-off"
+        }
+      }
+    },
     "binary_sensor": {
       "rain_lock_active": {
         "default": "mdi:weather-pouring"
@@ -46,9 +48,6 @@
     "number": {
       "volume": {
         "default": "mdi:volume-medium"
-      },
-      "brightness": {
-        "default": "mdi:brightness-6"
       },
       "inside_range": {
         "default": "mdi:home-import-outline"

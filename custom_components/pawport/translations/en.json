@@ -64,6 +64,23 @@
       },
       "lightning_lock_active": {
         "name": "Lightning lock active"
+      },
+      "inside_sensor": {
+        "name": "Inside sensor"
+      },
+      "outside_sensor": {
+        "name": "Outside sensor"
+      },
+      "outdoor_door_sensor": {
+        "name": "Outdoor door sensor"
+      },
+      "external_sensor": {
+        "name": "External sensor"
+      }
+    },
+    "light": {
+      "lights": {
+        "name": "Lights"
       }
     },
     "switch": {
@@ -72,9 +89,6 @@
       },
       "sound": {
         "name": "Sound"
-      },
-      "lights": {
-        "name": "Lights"
       },
       "panel_buttons": {
         "name": "Panel buttons"
@@ -125,9 +139,6 @@
     "number": {
       "volume": {
         "name": "Volume"
-      },
-      "brightness": {
-        "name": "Light brightness"
       },
       "inside_range": {
         "name": "Inside tag range"

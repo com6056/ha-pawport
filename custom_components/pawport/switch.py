@@ -44,14 +44,6 @@ SWITCHES: tuple[PawportSwitchDescription, ...] = (
         command="set_sound_enabled",
         arguments_fn=lambda on: {"enable": on},
     ),
-    PawportSwitchDescription(
-        key="lights",
-        translation_key="lights",
-        entity_category=EntityCategory.CONFIG,
-        value_fn=lambda s: s.led_enabled,
-        command="set_leds_enabled",
-        arguments_fn=lambda on: {"enable": on},
-    ),
     # The app's "Panel Buttons": on means the buttons on the door work, which
     # the door stores as control-panel lockout being off.
     PawportSwitchDescription(

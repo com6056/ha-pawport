@@ -33,12 +33,13 @@ query authDataGet {
   userContext {
     userID
     profile { emailAddress }
-    doors { doorID name homeID }
+    doors { doorID name homeID sensors { sensorType isConnected firmwareVersion } }
     doorStates {
       doorID behavior powerState batteryChargeLevel doorLocked
       firmwareVersion latestAvailableFirmwareVersion isFirmwareUpdateAvailable
-      isPluggedIn isCharging offlineSince updatedAt
-      openTime leftAngle speakerVolume soundEnabled ledEnabled ledBrightness
+      chargerDetails offlineSince updatedAt
+      openTime leftAngle speakerVolume soundEnabled
+      ledEnabled ledBrightness ledColor { red green blue }
       insideRange outsideRange controlPanelLockout
       rainLockEnabled lightningLockEnabled rainLockActive lightningLockActive
     }

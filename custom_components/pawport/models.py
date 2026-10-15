@@ -19,6 +19,24 @@ from typing import Any
 TRANSIT_FROM_INSIDE = 1
 TRANSIT_FROM_OUTSIDE = 2
 
+# doorStates.chargerDetails, read the way the app reads it (its hasDoorBattery,
+# isDoorPluggedIn and isCharging). The isPluggedIn and isCharging fields
+# themselves read false on a door that is plugged in, and the app ignores them.
+CHARGER_PLUGGED_IN = 0
+CHARGER_PLUGGED_IN_WITH_BATTERY = 1
+CHARGER_CHARGING = 2
+CHARGER_ON_BATTERY = 3
+_CHARGER_STATES = frozenset(
+    {CHARGER_PLUGGED_IN, CHARGER_PLUGGED_IN_WITH_BATTERY, CHARGER_CHARGING, CHARGER_ON_BATTERY}
+)
+
+# doors[].sensors[].sensorType, from the app's isSmartPetDoorInsideSensor,
+# isSmartPetDoorOutsideSensor, isOutdoorPetDoorSensor and isExternalSensor.
+SENSOR_INSIDE = 1
+SENSOR_OUTSIDE = 2
+SENSOR_OUTDOOR_DOOR = 3
+SENSOR_EXTERNAL = 4
+
 # The door reports some brightness levels with a +128 flag; the app subtracts
 # it from anything above this.
 _LED_FLAG_THRESHOLD = 6
@@ -71,6 +89,17 @@ def _led_brightness(value: Any) -> int | None:
     return level
 
 
+def _rgb(value: Any) -> tuple[int, int, int] | None:
+    """Return a ``{red green blue}`` object as a tuple, or None if any part is missing."""
+    if not isinstance(value, dict):
+        return None
+    parts = [_as_int(value.get(k)) for k in ("red", "green", "blue")]
+    if any(p is None for p in parts):
+        return None
+    red, green, blue = (max(0, min(int(p or 0), 255)) for p in parts)
+    return red, green, blue
+
+
 @dataclass(frozen=True, slots=True)
 class DoorState:
     """Live state of one door, from ``doorStates``."""
@@ -79,8 +108,7 @@ class DoorState:
     locked: bool | None
     behavior: Any
     battery_level: int | None
-    is_charging: bool | None
-    is_plugged_in: bool | None
+    charger: int | None
     firmware_version: str | None
     latest_firmware_version: str | None
     offline_since: datetime | None
@@ -91,6 +119,7 @@ class DoorState:
     sound_enabled: bool | None = None
     led_enabled: bool | None = None
     led_brightness: int | None = None
+    led_color: tuple[int, int, int] | None = None
     inside_range: int | None = None
     outside_range: int | None = None
     control_panel_lockout: bool | None = None
@@ -111,6 +140,27 @@ class DoorState:
         return self.behavior is not None
 
     @property
+    def has_battery(self) -> bool | None:
+        """Return whether a battery is fitted (it is an optional accessory)."""
+        if self.charger not in _CHARGER_STATES:
+            return None
+        return self.charger != CHARGER_PLUGGED_IN
+
+    @property
+    def plugged_in(self) -> bool | None:
+        """Return whether the door is on mains power."""
+        if self.charger not in _CHARGER_STATES:
+            return None
+        return self.charger != CHARGER_ON_BATTERY
+
+    @property
+    def charging(self) -> bool | None:
+        """Return whether the battery is charging."""
+        if self.charger not in _CHARGER_STATES:
+            return None
+        return self.charger == CHARGER_CHARGING
+
+    @property
     def online(self) -> bool:
         """Return whether the cloud currently reaches the door."""
         return self.offline_since is None
@@ -126,8 +176,7 @@ class DoorState:
             behavior=data.get("behavior"),
             # The app caps the reading at 100.
             battery_level=None if battery is None else min(battery, 100),
-            is_charging=_as_bool(data.get("isCharging")),
-            is_plugged_in=_as_bool(data.get("isPluggedIn")),
+            charger=_as_int(data.get("chargerDetails")),
             firmware_version=data.get("firmwareVersion"),
             latest_firmware_version=data.get("latestAvailableFirmwareVersion"),
             offline_since=_parse_time(data.get("offlineSince")),
@@ -138,6 +187,7 @@ class DoorState:
             sound_enabled=_as_bool(data.get("soundEnabled")),
             led_enabled=_as_bool(data.get("ledEnabled")),
             led_brightness=_led_brightness(data.get("ledBrightness")),
+            led_color=_rgb(data.get("ledColor")),
             inside_range=_as_int(data.get("insideRange")),
             outside_range=_as_int(data.get("outsideRange")),
             control_panel_lockout=_as_bool(data.get("controlPanelLockout")),
@@ -150,6 +200,28 @@ class DoorState:
 
 
 @dataclass(frozen=True, slots=True)
+class SensorModule:
+    """One of a door's sensor modules, from ``doors[].sensors``."""
+
+    sensor_type: int
+    connected: bool | None
+    firmware_version: str | None
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> SensorModule | None:
+        """Build from one ``sensors`` element, or None without a type."""
+        sensor_type = _as_int(data.get("sensorType"))
+        if sensor_type is None:
+            return None
+        firmware = data.get("firmwareVersion")
+        return cls(
+            sensor_type=sensor_type,
+            connected=_as_bool(data.get("isConnected")),
+            firmware_version=firmware if isinstance(firmware, str) else None,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class Door:
     """A door on the account, with its live state when the cloud has one."""
 
@@ -157,6 +229,7 @@ class Door:
     name: str
     home_id: str | None
     state: DoorState | None
+    sensors: dict[int, SensorModule] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -374,6 +447,11 @@ class Account:
                 name=d.get("name") or "Pawport",
                 home_id=d.get("homeID"),
                 state=states.get(door_id),
+                sensors={
+                    sensor.sensor_type: sensor
+                    for raw in d.get("sensors") or []
+                    if isinstance(raw, dict) and (sensor := SensorModule.from_api(raw)) is not None
+                },
             )
         profile = user_context.get("profile") or {}
         return cls(

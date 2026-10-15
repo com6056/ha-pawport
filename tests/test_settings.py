@@ -40,14 +40,6 @@ from .conftest import FakePawport, setup_entry
             "off",
         ),
         (
-            "switch.dog_door_lights",
-            "on",
-            SERVICE_TURN_OFF,
-            "set_leds_enabled",
-            {"enable": False},
-            "off",
-        ),
-        (
             "switch.dog_door_rain_lock",
             "on",
             SERVICE_TURN_OFF,
@@ -98,8 +90,6 @@ async def test_setting_switches(
     ("entity_id", "before", "value", "command", "arguments"),
     [
         ("number.dog_door_volume", "3", 5, "set_volume", {"volume": 5}),
-        # 132 on the wire is level 4 with the door's +128 flag.
-        ("number.dog_door_light_brightness", "4", 2, "set_brightness", {"ledBrightness": 2}),
         ("number.dog_door_inside_tag_range", "2", 4, "set_inside_range", {"range": 4}),
         ("number.dog_door_outside_tag_range", "3", 1, "set_outside_range", {"range": 1}),
     ],
@@ -213,6 +203,7 @@ async def test_settings_are_config_entities(
         "switch.dog_door_sound",
         "number.dog_door_volume",
         "select.dog_door_time_to_close",
+        "light.dog_door_lights",
     ):
         entry = registry.async_get(entity_id)
         assert entry is not None
@@ -231,6 +222,7 @@ async def test_settings_unavailable_without_door_state(
         "switch.dog_door_sound",
         "number.dog_door_volume",
         "select.dog_door_open_angle",
+        "light.dog_door_lights",
         "update.dog_door_firmware",
     ):
         assert hass.states.get(entity_id).state == "unavailable"

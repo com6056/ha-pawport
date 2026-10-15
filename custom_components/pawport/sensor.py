@@ -37,6 +37,7 @@ class DoorSensorDescription(SensorEntityDescription):
     """Describes a door sensor."""
 
     value_fn: Callable[[DoorState], SensorValue]
+    available_fn: Callable[[DoorState], bool] = lambda _: True
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -76,6 +77,8 @@ DOOR_SENSORS: tuple[DoorSensorDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda s: s.battery_level,
+        # The battery is an optional accessory; without one the door reads 0.
+        available_fn=lambda s: s.has_battery is True,
     ),
 )
 
@@ -152,6 +155,14 @@ class DoorSensor(PawportDoorEntity, SensorEntity):
     """A door reading."""
 
     entity_description: DoorSensorDescription
+
+    @property
+    def available(self) -> bool:
+        """Unavailable when the door lacks the hardware this reads."""
+        state = self.door_state
+        return (
+            super().available and state is not None and self.entity_description.available_fn(state)
+        )
 
     @property
     def native_value(self) -> SensorValue:

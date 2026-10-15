@@ -3,7 +3,7 @@
 Control a [Pawport](https://pawport.com) smart pet door from Home Assistant. Lock it, hold it open, change its settings, and see where your pets are and when they last went through.
 
 > [!WARNING]
-> This is early! It uses the same cloud API as the Pawport app, which Pawport doesn't document, and it hasn't been run against a real door yet. Expect rough edges, and please open an issue with diagnostics if anything looks off.
+> This is early! It uses the same cloud API as the Pawport app, which Pawport doesn't document, and so far it's only read a real door, not controlled one. Expect rough edges, and please open an issue with diagnostics if anything looks off.
 >
 > Not affiliated with or endorsed by Pawport.
 
@@ -21,10 +21,11 @@ Each door, pet and Smart Pet Tag on the account becomes a device. New ones appea
 | --- | --- | --- |
 | Door | Lock | Same lock as in the Pawport app |
 | Hold open | Switch | Holds the door open until you turn it off |
-| Battery | Sensor | Percent charge |
-| Charging | Binary sensor | |
+| Battery | Sensor | Percent charge, only with the optional battery fitted |
+| Charging | Binary sensor | Only with the optional battery fitted |
 | Plugged in | Binary sensor | |
 | Connectivity | Binary sensor | Off while the Pawport cloud can't reach the door |
+| Inside sensor, Outside sensor | Binary sensor | Whether each of the door's sensors is connected |
 | Rain lock active, Lightning lock active | Binary sensor | On while a weather lock is holding the door shut |
 | Firmware | Update | Shows when new firmware is out (install it from the Pawport app) |
 
@@ -32,9 +33,10 @@ Settings, with the same choices the Pawport app offers:
 
 | Entity | Type | Range |
 | --- | --- | --- |
-| Sound, Lights, Rain lock, Lightning lock | Switch | On or off |
+| Lights | Light | On or off, brightness and color |
+| Sound, Rain lock, Lightning lock | Switch | On or off |
 | Panel buttons | Switch | Off disables the buttons on the door |
-| Volume, Light brightness | Number | 0 to 5 |
+| Volume | Number | 0 to 5 |
 | Inside tag range, Outside tag range | Number | 1 to 5, about 1 to 5 feet |
 | Time to close | Select | 5, 10, 15 or 30 seconds |
 | Open angle | Select | 90° or 120° |
