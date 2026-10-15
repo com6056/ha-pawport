@@ -189,6 +189,6 @@ async def test_entities_registered(
     assert sorted(e.unique_id for e in entities) == sorted(
         [f"{DOOR_ID}_{key}" for key in door_keys]
         + [f"pet_{PET_ID}_{key}" for key in pet_keys]
-        + [f"tag_{TAG_ID}_{key}" for key in ("battery", "online")]
+        + [f"tag_{TAG_ID}_{key}" for key in ("battery", "battery_voltage", "online")]
         + [f"lock_schedule_{SCHEDULE_ID}", f"{DOOR_ID}_light_schedule"]
     )

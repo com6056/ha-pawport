@@ -181,6 +181,9 @@
       },
       "time_outside_today": {
         "name": "Time outside today"
+      },
+      "battery_voltage": {
+        "name": "Battery voltage"
       }
     }
   },

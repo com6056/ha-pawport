@@ -12,7 +12,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTime
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfElectricPotential, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -29,7 +29,7 @@ from .models import DoorState, Pet, Tag
 
 PARALLEL_UPDATES = 0
 
-type SensorValue = int | str | datetime | None
+type SensorValue = int | float | str | datetime | None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -59,8 +59,9 @@ def _today(pet: Pet) -> bool:
 
     The cloud reports only the latest day with activity, so on a day the pet
     has not used the door yet, today's counts are zero rather than that day's.
+    Days follow the Pawport home's time zone, as the cloud counts them.
     """
-    return pet.activity is not None and pet.activity.day == dt_util.now().date()
+    return pet.activity is not None and pet.activity.day == dt_util.now(pet.timezone).date()
 
 
 def _location(pet: Pet) -> str | None:
@@ -121,6 +122,17 @@ TAG_SENSORS: tuple[TagSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda t: t.battery_level,
+    ),
+    TagSensorDescription(
+        key="battery_voltage",
+        translation_key="battery_voltage",
+        device_class=SensorDeviceClass.VOLTAGE,
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        suggested_display_precision=2,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda t: t.battery_voltage,
     ),
 )
 

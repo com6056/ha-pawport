@@ -33,6 +33,7 @@ query authDataGet {
   userContext {
     userID
     profile { emailAddress }
+    homes { homeID timezone }
     doors { doorID name homeID sensors { sensorType isConnected firmwareVersion } }
     doorStates {
       doorID behavior powerState batteryChargeLevel doorLocked

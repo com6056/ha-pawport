@@ -10,10 +10,11 @@ Units and encodings follow how the Pawport app itself renders each field.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import UTC, date, datetime, tzinfo
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # PET_TRANSIT_LOCATION in the app: where the pet was when it opened the door.
 TRANSIT_FROM_INSIDE = 1
@@ -37,19 +38,42 @@ SENSOR_OUTSIDE = 2
 SENSOR_OUTDOOR_DOOR = 3
 SENSOR_EXTERNAL = 4
 
+# tags.batteryLevel is the coin cell's voltage. The app's TagBatteryLevel
+# shows (volts - 2.0) / 1.2 as the charge, so 2.0 V is empty and 3.2 V full.
+_TAG_EMPTY_VOLTS = 2.0
+_TAG_RANGE_VOLTS = 1.2
+
 # The door reports some brightness levels with a +128 flag; the app subtracts
 # it from anything above this.
 _LED_FLAG_THRESHOLD = 6
 _LED_FLAG = 128
 
 
-def _parse_time(value: Any) -> datetime | None:
-    """Parse an ISO 8601 timestamp, returning None for anything else."""
+def _parse_time(value: Any, zone: tzinfo | None = None) -> datetime | None:
+    """Parse a timestamp, returning None for anything that is not one.
+
+    Some fields carry no offset. ``transitAt`` is the home's local time (the
+    app shows it in ``homes[].timezone``), so callers pass that zone; anything
+    else without an offset is UTC, like ``createdAt``.
+    """
     if not isinstance(value, str) or not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=zone or UTC)
+    return parsed
+
+
+def _zone(name: Any) -> tzinfo | None:
+    """Return the named IANA time zone, or None if it is missing or unknown."""
+    if not isinstance(name, str) or not name:
+        return None
+    try:
+        return ZoneInfo(name)
+    except ZoneInfoNotFoundError, ValueError:
         return None
 
 
@@ -250,12 +274,18 @@ class Transit:
         return None
 
     @classmethod
-    def from_api(cls, data: dict[str, Any]) -> Transit | None:
-        """Build from one ``transits`` element, or None without a timestamp."""
-        transit_at = _parse_time(data.get("transitAt"))
+    def from_api(
+        cls, data: dict[str, Any], zones: Mapping[str, tzinfo], default_zone: tzinfo | None
+    ) -> Transit | None:
+        """Build from one ``transits`` element, or None without a timestamp.
+
+        ``zones`` maps a door to its home's time zone, which ``transitAt`` is in.
+        """
+        door_id = data.get("doorID")
+        zone = zones.get(str(door_id), default_zone) if door_id else default_zone
+        transit_at = _parse_time(data.get("transitAt"), zone)
         if transit_at is None:
             return None
-        door_id = data.get("doorID")
         return cls(
             transit_at=transit_at,
             location=_as_int(data.get("location")),
@@ -273,12 +303,18 @@ class Activity:
     transits: tuple[Transit, ...]
 
     @classmethod
-    def from_api(cls, data: dict[str, Any]) -> Activity:
+    def from_api(
+        cls,
+        data: dict[str, Any],
+        zones: Mapping[str, tzinfo] | None = None,
+        default_zone: tzinfo | None = None,
+    ) -> Activity:
         """Build from a ``latestActivity`` object."""
         transits = [
             t
             for raw in (data.get("activity") or {}).get("transits") or []
-            if isinstance(raw, dict) and (t := Transit.from_api(raw)) is not None
+            if isinstance(raw, dict)
+            and (t := Transit.from_api(raw, zones or {}, default_zone)) is not None
         ]
         return cls(
             day=_parse_date(data.get("date")),
@@ -296,6 +332,8 @@ class Pet:
     name: str
     species: str | None
     activity: Activity | None
+    # The time zone of the pet's home, which its activity days follow.
+    timezone: tzinfo | None = None
 
     @property
     def last_transit(self) -> Transit | None:
@@ -305,14 +343,27 @@ class Pet:
         return self.activity.transits[-1]
 
     @classmethod
-    def from_api(cls, data: dict[str, Any]) -> Pet:
+    def from_api(
+        cls,
+        data: dict[str, Any],
+        zones: Mapping[str, tzinfo] | None = None,
+        default_zone: tzinfo | None = None,
+    ) -> Pet:
         """Build from one ``pets`` element."""
         latest = data.get("latestActivity")
+        activity = (
+            Activity.from_api(latest, zones, default_zone) if isinstance(latest, dict) else None
+        )
+        zone = default_zone
+        if activity is not None and activity.transits:
+            door_id = activity.transits[-1].door_id
+            zone = (zones or {}).get(door_id or "", default_zone)
         return cls(
             pet_id=str(data["petID"]),
             name=data.get("name") or "Pet",
             species=(data.get("species") or {}).get("name"),
-            activity=Activity.from_api(latest) if isinstance(latest, dict) else None,
+            activity=activity,
+            timezone=zone,
         )
 
 
@@ -323,23 +374,31 @@ class Tag:
     tag_id: str
     name: str
     pet_id: str | None
-    battery_level: int | None
+    battery_voltage: float | None
     is_online: bool | None
+
+    @property
+    def battery_level(self) -> int | None:
+        """Return the charge in percent, worked out the way the app does."""
+        if self.battery_voltage is None:
+            return None
+        fraction = (self.battery_voltage - _TAG_EMPTY_VOLTS) / _TAG_RANGE_VOLTS
+        return round(max(0.0, min(fraction, 1.0)) * 100)
 
     @classmethod
     def from_api(cls, data: dict[str, Any]) -> Tag:
         """Build from one ``tags`` element."""
-        # The app treats batteryLevel as a 0-1 fraction.
-        level = data.get("batteryLevel")
-        battery = None
-        if isinstance(level, int | float) and not isinstance(level, bool):
-            battery = round(max(0.0, min(float(level), 1.0)) * 100)
+        volts = data.get("batteryLevel")
         pet_id = data.get("petID")
         return cls(
             tag_id=str(data["tagID"]),
             name=data.get("name") or "Smart Pet Tag",
             pet_id=str(pet_id) if pet_id else None,
-            battery_level=battery,
+            battery_voltage=(
+                float(volts)
+                if isinstance(volts, int | float) and not isinstance(volts, bool)
+                else None
+            ),
             is_online=_as_bool(data.get("isOnline")),
         )
 
@@ -445,7 +504,7 @@ class Account:
             doors[door_id] = Door(
                 door_id=door_id,
                 name=d.get("name") or "Pawport",
-                home_id=d.get("homeID"),
+                home_id=str(d["homeID"]) if d.get("homeID") else None,
                 state=states.get(door_id),
                 sensors={
                     sensor.sensor_type: sensor
@@ -453,12 +512,30 @@ class Account:
                     if isinstance(raw, dict) and (sensor := SensorModule.from_api(raw)) is not None
                 },
             )
+        homes: dict[str, tzinfo] = {}
+        for home in user_context.get("homes") or []:
+            if (
+                isinstance(home, dict)
+                and home.get("homeID")
+                and (zone := _zone(home.get("timezone"))) is not None
+            ):
+                homes[str(home["homeID"])] = zone
+        zones = {
+            door_id: homes[door.home_id]
+            for door_id, door in doors.items()
+            if door.home_id and door.home_id in homes
+        }
+        default_zone = next(iter(homes.values()), None)
         profile = user_context.get("profile") or {}
         return cls(
             user_id=str(user_context.get("userID")),
             email=profile.get("emailAddress"),
             doors=doors,
-            pets=_by_id(user_context.get("pets"), "petID", Pet.from_api),
+            pets=_by_id(
+                user_context.get("pets"),
+                "petID",
+                lambda data: Pet.from_api(data, zones, default_zone),
+            ),
             tags=_by_id(user_context.get("tags"), "tagID", Tag.from_api),
             lock_schedules=_by_id(
                 user_context.get("doorLockSchedules"), "doorLockScheduleID", LockSchedule.from_api

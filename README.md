@@ -54,7 +54,7 @@ Schedules set up in the Pawport app:
 | --- | --- | --- |
 | Location | Sensor | Inside or outside, going by the last trip through a door |
 | Last trip | Sensor | When the pet last went through a door |
-| Trips outside today | Sensor | Resets at midnight in Home Assistant's time zone |
+| Trips outside today | Sensor | Resets at midnight in your Pawport home's time zone |
 | Time outside today | Sensor | |
 
 ### Smart Pet Tag
@@ -62,6 +62,7 @@ Schedules set up in the Pawport app:
 | Entity | Type | Notes |
 | --- | --- | --- |
 | Battery | Sensor | |
+| Battery voltage | Sensor | The coin cell's voltage, off by default |
 | Connectivity | Binary sensor | |
 
 ## Installation

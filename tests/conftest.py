@@ -66,8 +66,9 @@ SENSORS: list[dict[str, Any]] = [
 ]
 
 PET_ID = "pet-1"
+HOME_TIMEZONE = "America/Los_Angeles"
 TAG_ID = "tag-1"
-ACTIVITY_DAY = "2026-10-06"
+ACTIVITY_DAY = "2026-10-06 00:00:00"  # as the cloud sends it
 
 PET: dict[str, Any] = {
     "petID": PET_ID,
@@ -80,9 +81,10 @@ PET: dict[str, Any] = {
         "activity": {
             "transits": [
                 # Out at 10:00, back in at 10:30 (location is where the pet
-                # opened the door from: 1 inside, 2 outside).
-                {"doorID": DOOR_ID, "transitAt": "2026-10-06T17:30:00Z", "location": 2},
-                {"doorID": DOOR_ID, "transitAt": "2026-10-06T17:00:00Z", "location": 1},
+                # opened the door from: 1 inside, 2 outside). Like the real
+                # cloud, the times are the home's local time with no offset.
+                {"doorID": DOOR_ID, "transitAt": "2026-10-06 10:30:00", "location": 2},
+                {"doorID": DOOR_ID, "transitAt": "2026-10-06 10:00:00", "location": 1},
             ]
         },
     },
@@ -92,7 +94,7 @@ TAG: dict[str, Any] = {
     "tagID": TAG_ID,
     "name": "Biscuit's tag",
     "petID": PET_ID,
-    "batteryLevel": 0.8,
+    "batteryLevel": 2.96,  # volts, 80% on the app's 2.0-3.2 V scale
     "isOnline": True,
 }
 
@@ -154,6 +156,7 @@ def user_context() -> dict[str, Any]:
     return {
         "userID": USER_ID,
         "profile": {"emailAddress": EMAIL},
+        "homes": [{"homeID": "home-1", "timezone": HOME_TIMEZONE}],
         "doors": [
             {
                 "doorID": DOOR_ID,

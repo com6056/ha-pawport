@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import copy
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.pawport.const import DOMAIN, SCAN_INTERVAL
-from custom_components.pawport.models import Pet, Tag
+from custom_components.pawport.models import Account, Pet, Tag
 
 from .conftest import PET, PET_ID, TAG, TAG_ID, FakePawport, setup_entry
 
@@ -40,6 +42,22 @@ async def test_pet_sensors_today(
     assert device is not None
     assert device.name == "Biscuit"
     assert device.model == "Dog"
+
+
+async def test_today_follows_the_pawport_home(
+    hass: HomeAssistant,
+    pawport: FakePawport,
+    config_entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Days are the home's, not Home Assistant's, since that's how the cloud counts them."""
+    await hass.config.async_set_time_zone("Asia/Tokyo")
+    # 10:00 on 2026-10-06 at the home, already 2026-10-07 in Tokyo.
+    freezer.move_to("2026-10-06 17:00:00+00:00")
+    await setup_entry(hass, config_entry)
+    assert hass.states.get("sensor.biscuit_trips_outside_today").state == "1"
+    # The trip time is the same instant whatever zone Home Assistant is in.
+    assert hass.states.get("sensor.biscuit_last_trip").state == "2026-10-06T17:30:00+00:00"
 
 
 async def test_counts_reset_on_a_new_day(
@@ -80,8 +98,11 @@ async def test_tag_entities(
     hass: HomeAssistant, pawport: FakePawport, config_entry: MockConfigEntry
 ) -> None:
     await setup_entry(hass, config_entry)
-    # The cloud reports tag battery as a 0-1 fraction.
+    # The cloud reports the tag's coin cell voltage, 2.96 V here.
     assert hass.states.get("sensor.biscuit_s_tag_battery").state == "80"
+    voltage = er.async_get(hass).async_get("sensor.biscuit_s_tag_battery_voltage")
+    assert voltage is not None
+    assert voltage.disabled_by is er.RegistryEntryDisabler.INTEGRATION
     assert hass.states.get("binary_sensor.biscuit_s_tag_connectivity").state == "on"
     device = dr.async_get(hass).async_get_device_by_identifier(
         (DOMAIN, f"tag_{TAG_ID}"), config_entry.entry_id
@@ -159,10 +180,68 @@ def test_pet_model_edge_cases() -> None:
 
 
 def test_tag_model_edge_cases() -> None:
-    assert Tag.from_api({"tagID": "t", "batteryLevel": 1.7}).battery_level == 100
-    assert Tag.from_api({"tagID": "t", "batteryLevel": -1}).battery_level == 0
+    # The app's scale: 2.0 V is empty and 3.2 V full. A fresh cell reads 3.24.
+    assert Tag.from_api({"tagID": "t", "batteryLevel": 3.24}).battery_level == 100
+    assert Tag.from_api({"tagID": "t", "batteryLevel": 2.6}).battery_level == 50
+    assert Tag.from_api({"tagID": "t", "batteryLevel": 1.9}).battery_level == 0
+    assert Tag.from_api({"tagID": "t", "batteryLevel": 3}).battery_voltage == 3.0
     assert Tag.from_api({"tagID": "t", "batteryLevel": True}).battery_level is None
     tag = Tag.from_api({"tagID": "t"})
     assert tag.name == "Smart Pet Tag"
     assert tag.pet_id is None
     assert tag.battery_level is None
+
+
+def _account(homes: list[dict[str, str]], transit_at: str, door_id: str = "d1") -> Account:
+    return Account.from_api(
+        {
+            "userID": 1,
+            "homes": homes,
+            "doors": [{"doorID": "d1", "homeID": "h1"}, {"doorID": "d2", "homeID": "h2"}],
+            "pets": [
+                {
+                    "petID": "p",
+                    "latestActivity": {
+                        "activity": {
+                            "transits": [
+                                {"doorID": door_id, "transitAt": transit_at, "location": 1}
+                            ]
+                        }
+                    },
+                }
+            ],
+        }
+    )
+
+
+def test_transit_times_use_the_door_home_zone() -> None:
+    homes = [
+        {"homeID": "h1", "timezone": "America/Los_Angeles"},
+        {"homeID": "h2", "timezone": "Europe/Berlin"},
+    ]
+    la = _account(homes, "2026-10-15 15:28:58").pets["p"]
+    assert la.last_transit is not None
+    assert la.last_transit.transit_at == datetime(2026, 10, 15, 22, 28, 58, tzinfo=UTC)
+    assert la.timezone == ZoneInfo("America/Los_Angeles")
+    berlin = _account(homes, "2026-10-15 15:28:58", door_id="d2").pets["p"]
+    assert berlin.last_transit is not None
+    assert berlin.last_transit.transit_at == datetime(2026, 10, 15, 13, 28, 58, tzinfo=UTC)
+    assert berlin.timezone == ZoneInfo("Europe/Berlin")
+    # An offset in the value wins over the home's zone.
+    explicit = _account(homes, "2026-10-15T15:28:58Z").pets["p"]
+    assert explicit.last_transit is not None
+    assert explicit.last_transit.transit_at == datetime(2026, 10, 15, 15, 28, 58, tzinfo=UTC)
+
+
+def test_transit_times_without_a_known_zone() -> None:
+    # A door on an unknown home falls back to the account's first home.
+    first = _account(
+        [{"homeID": "h1", "timezone": "America/Los_Angeles"}], "2026-10-15 15:00:00", "d2"
+    )
+    assert first.pets["p"].timezone == ZoneInfo("America/Los_Angeles")
+    # No usable zone at all: read as UTC rather than dropped.
+    for homes in ([], [{"homeID": "h1", "timezone": "Not/AZone"}], [{"homeID": "h1"}]):
+        pet = _account(homes, "2026-10-15 15:00:00").pets["p"]
+        assert pet.timezone is None
+        assert pet.last_transit is not None
+        assert pet.last_transit.transit_at == datetime(2026, 10, 15, 15, 0, tzinfo=UTC)
