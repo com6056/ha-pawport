@@ -43,6 +43,13 @@ SENSOR_EXTERNAL = 4
 _TAG_EMPTY_VOLTS = 2.0
 _TAG_RANGE_VOLTS = 1.2
 
+# doorStates.doorActivityIndicator, the app's doorActivityIndicatorCodes. The
+# low bits are the motion and +16/+32 say a panel button or a command caused
+# it (OPEN_COMMAND is 35, CLOSED_BUTTON 20). 5-7 are jam, self-tuning and
+# alarm. The app's isDoorOpen is "opening or open, from any source".
+_ACTIVITY_STATES = {1: "opening", 2: "closing", 3: "open", 4: "closed"}
+_ACTIVITY_SOURCES = (0, 16, 32)
+
 # The door reports some brightness levels with a +128 flag; the app subtracts
 # it from anything above this.
 _LED_FLAG_THRESHOLD = 6
@@ -130,7 +137,7 @@ class DoorState:
 
     door_id: str
     locked: bool | None
-    behavior: Any
+    activity: int | None
     battery_level: int | None
     charger: int | None
     firmware_version: str | None
@@ -154,14 +161,18 @@ class DoorState:
     raw: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @property
-    def held_open(self) -> bool:
-        """Return whether the door is being held open.
+    def open_state(self) -> str | None:
+        """Return opening, open, closing or closed, or None for anything else.
 
-        Follows homebridge-pawport, the only implementation tested against a
-        real door: ``behavior`` is null while the door runs normally and set
-        while a force-open is active.
+        ``behavior`` looks like the obvious source but stays null while the
+        door is held open (seen live in October 2026); the app reads this.
         """
-        return self.behavior is not None
+        if self.activity is None or self.activity < 0:
+            return None
+        source, motion = self.activity & ~0xF, self.activity & 0xF
+        if source not in _ACTIVITY_SOURCES:
+            return None
+        return _ACTIVITY_STATES.get(motion)
 
     @property
     def has_battery(self) -> bool | None:
@@ -197,7 +208,7 @@ class DoorState:
         return cls(
             door_id=str(data["doorID"]),
             locked=None if locked is None else locked == 1 or locked is True,
-            behavior=data.get("behavior"),
+            activity=_as_int(data.get("doorActivityIndicator")),
             # The app caps the reading at 100.
             battery_level=None if battery is None else min(battery, 100),
             charger=_as_int(data.get("chargerDetails")),
@@ -265,8 +276,13 @@ class Transit:
     door_id: str | None
 
     @property
-    def went_out(self) -> bool | None:
-        """Return True for an exit, False for an entry, None if unknown."""
+    def opened_from_inside(self) -> bool | None:
+        """Return True if the pet opened the door from inside, False if it came in.
+
+        Opening from inside doesn't mean the pet went out. The cloud only knows
+        a trip happened once the pet comes back in, which is how the app reads
+        it too, so this never claims a pet is outside.
+        """
         if self.location == TRANSIT_FROM_INSIDE:
             return True
         if self.location == TRANSIT_FROM_OUTSIDE:

@@ -64,11 +64,11 @@ def _today(pet: Pet) -> bool:
     return pet.activity is not None and pet.activity.day == dt_util.now(pet.timezone).date()
 
 
-def _location(pet: Pet) -> str | None:
+def _last_door_event(pet: Pet) -> str | None:
     transit = pet.last_transit
-    if transit is None or transit.went_out is None:
+    if transit is None or transit.opened_from_inside is None:
         return None
-    return "outside" if transit.went_out else "inside"
+    return "opened_from_inside" if transit.opened_from_inside else "came_in"
 
 
 DOOR_SENSORS: tuple[DoorSensorDescription, ...] = (
@@ -85,11 +85,11 @@ DOOR_SENSORS: tuple[DoorSensorDescription, ...] = (
 
 PET_SENSORS: tuple[PetSensorDescription, ...] = (
     PetSensorDescription(
-        key="location",
-        translation_key="location",
+        key="last_door_event",
+        translation_key="last_door_event",
         device_class=SensorDeviceClass.ENUM,
-        options=["inside", "outside"],
-        value_fn=_location,
+        options=["came_in", "opened_from_inside"],
+        value_fn=_last_door_event,
     ),
     PetSensorDescription(
         key="last_trip",

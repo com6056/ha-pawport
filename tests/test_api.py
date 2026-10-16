@@ -135,7 +135,7 @@ async def test_get_account(client: PawportClient, pawport: FakePawport) -> None:
     assert door.state.locked is True
     assert door.state.battery_level == 87
     assert door.state.online is True
-    assert door.state.held_open is False
+    assert door.state.open_state == "closed"
 
 
 async def test_sends_token_header(
@@ -149,7 +149,7 @@ async def test_sends_token_header(
 
 async def test_commands(client: PawportClient, pawport: FakePawport) -> None:
     await client.set_locked(DOOR_ID, False)
-    await client.set_held_open(DOOR_ID, True)
+    await client.set_open(DOOR_ID, True)
     assert pawport.commands == [
         ("door_lock", {"locked": False}),
         ("force_open", {"forceOpen": True}),
@@ -309,3 +309,33 @@ def test_door_sensor_modules() -> None:
     assert sensors[1].firmware_version == "2.2.7"
     assert sensors[2].connected is False
     assert sensors[2].firmware_version is None
+
+
+@pytest.mark.parametrize(
+    ("indicator", "open_state"),
+    [
+        (1, "opening"),
+        (17, "opening"),
+        (2, "closing"),
+        (34, "closing"),
+        (3, "open"),
+        (35, "open"),
+        (4, "closed"),
+        (20, "closed"),
+        # Jam, self-tuning, alarm, unknown, unassigned and unknown sources.
+        (5, None),
+        (6, None),
+        (7, None),
+        (0, None),
+        (4294967295, None),
+        (-1, None),
+        (52, None),
+        (None, None),
+    ],
+)
+def test_door_open_state(indicator: int | None, open_state: str | None) -> None:
+    """The open state comes from doorActivityIndicator, as in the app."""
+    state = DoorState.from_api(
+        {"doorID": "d", "doorActivityIndicator": indicator, "behavior": None}
+    )
+    assert state.open_state == open_state

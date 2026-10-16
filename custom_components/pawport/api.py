@@ -36,7 +36,7 @@ query authDataGet {
     homes { homeID timezone }
     doors { doorID name homeID sensors { sensorType isConnected firmwareVersion } }
     doorStates {
-      doorID behavior powerState batteryChargeLevel doorLocked
+      doorID doorActivityIndicator powerState batteryChargeLevel doorLocked
       firmwareVersion latestAvailableFirmwareVersion isFirmwareUpdateAvailable
       chargerDetails offlineSince updatedAt
       openTime leftAngle speakerVolume soundEnabled
@@ -204,9 +204,12 @@ class PawportClient:
         """Lock or unlock a door."""
         await self.send_door_command(door_id, "door_lock", {"locked": locked})
 
-    async def set_held_open(self, door_id: str, held_open: bool) -> None:
-        """Hold a door open, or release it."""
-        await self.send_door_command(door_id, "force_open", {"forceOpen": held_open})
+    async def set_open(self, door_id: str, open_: bool) -> None:
+        """Open a door and hold it open, or close it again.
+
+        The app's "Open" and "Close" (``doorOpen``/``doorClose``).
+        """
+        await self.send_door_command(door_id, "force_open", {"forceOpen": open_})
 
     async def set_lock_schedule_enabled(self, schedule_id: str, enabled: bool) -> None:
         """Turn a lock schedule on or off."""

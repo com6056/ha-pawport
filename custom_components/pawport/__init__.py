@@ -15,6 +15,7 @@ from .entity import device_identifiers
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
+    Platform.COVER,
     Platform.LIGHT,
     Platform.LOCK,
     Platform.NUMBER,

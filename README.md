@@ -3,7 +3,7 @@
 Control a [Pawport](https://pawport.com) smart pet door from Home Assistant. Lock it, hold it open, change its settings, and see where your pets are and when they last went through.
 
 > [!WARNING]
-> This is early! It uses the same cloud API as the Pawport app, which Pawport doesn't document, and so far it's only read a real door, not controlled one. Expect rough edges, and please open an issue with diagnostics if anything looks off.
+> This is early! It uses the same cloud API as the Pawport app, which Pawport doesn't document, and so far it's only been tested on one door. Expect rough edges, and please open an issue with diagnostics if anything looks off.
 >
 > Not affiliated with or endorsed by Pawport.
 
@@ -20,7 +20,7 @@ Each door, pet and Smart Pet Tag on the account becomes a device. New ones appea
 | Entity | Type | Notes |
 | --- | --- | --- |
 | Door | Lock | Same lock as in the Pawport app |
-| Hold open | Switch | Holds the door open until you turn it off |
+| Door | Cover | Open holds it open until you close it |
 | Battery | Sensor | Percent charge, only with the optional battery fitted |
 | Charging | Binary sensor | Only with the optional battery fitted |
 | Plugged in | Binary sensor | |
@@ -52,10 +52,12 @@ Schedules set up in the Pawport app:
 
 | Entity | Type | Notes |
 | --- | --- | --- |
-| Location | Sensor | Inside or outside, going by the last trip through a door |
-| Last trip | Sensor | When the pet last went through a door |
+| Last door event | Sensor | Came in, or opened the door from inside |
+| Last trip | Sensor | When the pet last used the door |
 | Trips outside today | Sensor | Resets at midnight in your Pawport home's time zone |
 | Time outside today | Sensor | |
+
+There's no inside or outside sensor on purpose. A pet opening the door from inside doesn't always go out, and Pawport only knows a trip happened once the pet comes back in.
 
 ### Smart Pet Tag
 
@@ -89,7 +91,7 @@ To follow a change to the account's email, or to switch to a password, use **Rec
 ## Use cases
 
 - Keep pets in when something makes the yard unsafe, like a gate left open, the pool cover off, or a delivery at the side door.
-- Get a notification when a pet goes out or comes back, or hasn't come back after dark.
+- Get a notification when a pet comes back in, or when one opens the door after dark.
 - Lock up when everyone leaves, or switch to a stricter lock schedule while you're away.
 - Track how long each pet spends outside, with Home Assistant's history and statistics.
 
@@ -116,19 +118,19 @@ automation:
           entity_id: lock.dog_door
 ```
 
-Tell me when a pet comes in or goes out:
+Tell me when a pet comes back in:
 
 ```yaml
 automation:
-  - alias: Pet came in or went out
+  - alias: Pet came in
     triggers:
       - trigger: state
-        entity_id: sensor.biscuit_location
-        to: [inside, outside]
+        entity_id: sensor.biscuit_last_door_event
+        to: came_in
     actions:
       - action: notify.mobile_app_my_phone
         data:
-          message: "Biscuit is {{ trigger.to_state.state }}."
+          message: "Biscuit came in."
 ```
 
 Remind me if the door has been locked for an hour:

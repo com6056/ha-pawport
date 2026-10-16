@@ -30,13 +30,6 @@ class PawportSwitchDescription(SwitchEntityDescription):
 
 SWITCHES: tuple[PawportSwitchDescription, ...] = (
     PawportSwitchDescription(
-        key="hold_open",
-        translation_key="hold_open",
-        value_fn=lambda s: s.held_open,
-        command="force_open",
-        arguments_fn=lambda on: {"forceOpen": on},
-    ),
-    PawportSwitchDescription(
         key="sound",
         translation_key="sound",
         entity_category=EntityCategory.CONFIG,

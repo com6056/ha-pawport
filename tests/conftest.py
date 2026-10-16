@@ -32,7 +32,8 @@ DOOR_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 
 DOOR_STATE: dict[str, Any] = {
     "doorID": DOOR_ID,
-    "behavior": None,
+    "behavior": None,  # stays null even while the door is held open
+    "doorActivityIndicator": 20,  # CLOSED_BUTTON
     "powerState": 1,
     "batteryChargeLevel": 87,
     "doorLocked": 1,
@@ -282,7 +283,8 @@ class FakePawport:
         if variables["command"] == "door_lock":
             state["doorLocked"] = 1 if variables["arguments"]["locked"] else 0
         elif variables["command"] == "force_open":
-            state["behavior"] = "force_open" if variables["arguments"]["forceOpen"] else None
+            # OPEN_COMMAND or CLOSED_COMMAND.
+            state["doorActivityIndicator"] = 35 if variables["arguments"]["forceOpen"] else 36
         elif variables["command"] == "set_color":
             rgb = variables["arguments"]["rgbHex"]
             state["ledColor"] = {

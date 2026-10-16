@@ -29,7 +29,7 @@ async def test_pet_sensors_today(
 ) -> None:
     freezer.move_to(SAME_DAY)
     await setup_entry(hass, config_entry)
-    assert hass.states.get("sensor.biscuit_location").state == "inside"
+    assert hass.states.get("sensor.biscuit_last_door_event").state == "came_in"
     assert hass.states.get("sensor.biscuit_last_trip").state == "2026-10-06T17:30:00+00:00"
     assert hass.states.get("sensor.biscuit_trips_outside_today").state == "1"
     time_outside = hass.states.get("sensor.biscuit_time_outside_today")
@@ -72,16 +72,19 @@ async def test_counts_reset_on_a_new_day(
     assert hass.states.get("sensor.biscuit_trips_outside_today").state == "0"
     assert float(hass.states.get("sensor.biscuit_time_outside_today").state) == 0
     # Where the pet is and when it last moved still come from that day.
-    assert hass.states.get("sensor.biscuit_location").state == "inside"
+    assert hass.states.get("sensor.biscuit_last_door_event").state == "came_in"
 
 
-async def test_pet_went_out(
+async def test_pet_opened_the_door_from_inside(
     hass: HomeAssistant, pawport: FakePawport, config_entry: MockConfigEntry
 ) -> None:
+    """Opening from inside is reported as just that, never as the pet being outside."""
     transits = pawport.context["pets"][0]["latestActivity"]["activity"]["transits"]
     transits.append({"doorID": "x", "transitAt": "2026-10-06T18:00:00Z", "location": 1})
     await setup_entry(hass, config_entry)
-    assert hass.states.get("sensor.biscuit_location").state == "outside"
+    state = hass.states.get("sensor.biscuit_last_door_event")
+    assert state.state == "opened_from_inside"
+    assert state.attributes["options"] == ["came_in", "opened_from_inside"]
 
 
 async def test_pet_without_activity(
@@ -89,7 +92,7 @@ async def test_pet_without_activity(
 ) -> None:
     pawport.context["pets"][0]["latestActivity"] = None
     await setup_entry(hass, config_entry)
-    assert hass.states.get("sensor.biscuit_location").state == "unknown"
+    assert hass.states.get("sensor.biscuit_last_door_event").state == "unknown"
     assert hass.states.get("sensor.biscuit_last_trip").state == "unknown"
     assert hass.states.get("sensor.biscuit_trips_outside_today").state == "0"
 
@@ -123,7 +126,7 @@ async def test_pets_and_tags_come_and_go(
     freezer.tick(SCAN_INTERVAL)
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
-    assert hass.states.get("sensor.mochi_location") is not None
+    assert hass.states.get("sensor.mochi_last_door_event") is not None
     assert hass.states.get("sensor.mochi_s_tag_battery") is not None
 
     # A pet or tag removed from the account goes unavailable, then loses its
@@ -133,7 +136,7 @@ async def test_pets_and_tags_come_and_go(
     freezer.tick(SCAN_INTERVAL)
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
-    assert hass.states.get("sensor.biscuit_location").state == "unavailable"
+    assert hass.states.get("sensor.biscuit_last_door_event").state == "unavailable"
     assert hass.states.get("sensor.biscuit_s_tag_battery").state == "unavailable"
 
     await hass.config_entries.async_reload(config_entry.entry_id)
@@ -171,7 +174,7 @@ def test_pet_model_edge_cases() -> None:
     assert pet.activity is not None
     assert pet.activity.day is None
     assert pet.last_transit is not None
-    assert pet.last_transit.went_out is None
+    assert pet.last_transit.opened_from_inside is None
     assert pet.last_transit.door_id is None
     no_date = Pet.from_api({"petID": "x", "latestActivity": {}})
     assert no_date.activity is not None

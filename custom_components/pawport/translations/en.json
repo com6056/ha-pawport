@@ -84,9 +84,6 @@
       }
     },
     "switch": {
-      "hold_open": {
-        "name": "Hold open"
-      },
       "sound": {
         "name": "Sound"
       },
@@ -166,11 +163,11 @@
       }
     },
     "sensor": {
-      "location": {
-        "name": "Location",
+      "last_door_event": {
+        "name": "Last door event",
         "state": {
-          "inside": "Inside",
-          "outside": "Outside"
+          "came_in": "Came in",
+          "opened_from_inside": "Opened the door from inside"
         }
       },
       "last_trip": {

@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.components.lock import DOMAIN as LOCK_DOMAIN, SERVICE_LOCK, SERVICE_UNLOCK
-from homeassistant.components.switch import (
-    DOMAIN as SWITCH_DOMAIN,
-    SERVICE_TURN_OFF,
-    SERVICE_TURN_ON,
+from homeassistant.components.cover import (
+    DOMAIN as COVER_DOMAIN,
+    SERVICE_CLOSE_COVER,
+    SERVICE_OPEN_COVER,
 )
+from homeassistant.components.lock import DOMAIN as LOCK_DOMAIN, SERVICE_LOCK, SERVICE_UNLOCK
 from homeassistant.config_entries import SOURCE_REAUTH
 from homeassistant.const import ATTR_ENTITY_ID, EntityCategory
 from homeassistant.core import HomeAssistant
@@ -28,7 +28,7 @@ from custom_components.pawport.const import SCAN_INTERVAL
 from .conftest import DOOR_ID, EMAIL, TOKEN, FakePawport, setup_entry
 
 LOCK = "lock.dog_door"
-HOLD_OPEN = "switch.dog_door_hold_open"
+DOOR = "cover.dog_door"
 BATTERY = "sensor.dog_door_battery"
 CHARGING = "binary_sensor.dog_door_charging"
 PLUGGED_IN = "binary_sensor.dog_door_plugged_in"
@@ -61,18 +61,37 @@ async def test_lock(
     assert hass.states.get(LOCK).state == "locked"
 
 
-async def test_hold_open(
+async def test_door_cover(
     hass: HomeAssistant, pawport: FakePawport, config_entry: MockConfigEntry
 ) -> None:
     await setup_entry(hass, config_entry)
-    assert hass.states.get(HOLD_OPEN).state == "off"
+    state = hass.states.get(DOOR)
+    assert state.state == "closed"
+    assert state.attributes["device_class"] == "door"
 
-    await call(hass, SWITCH_DOMAIN, SERVICE_TURN_ON, HOLD_OPEN)
+    await call(hass, COVER_DOMAIN, SERVICE_OPEN_COVER, DOOR)
     assert pawport.commands[-1] == ("force_open", {"forceOpen": True})
-    assert hass.states.get(HOLD_OPEN).state == "on"
+    assert hass.states.get(DOOR).state == "open"
 
-    await call(hass, SWITCH_DOMAIN, SERVICE_TURN_OFF, HOLD_OPEN)
-    assert hass.states.get(HOLD_OPEN).state == "off"
+    await call(hass, COVER_DOMAIN, SERVICE_CLOSE_COVER, DOOR)
+    assert pawport.commands[-1] == ("force_open", {"forceOpen": False})
+    assert hass.states.get(DOOR).state == "closed"
+
+
+@pytest.mark.parametrize(
+    ("indicator", "expected"),
+    [(1, "opening"), (2, "closing"), (5, "unknown"), (None, "unknown")],
+)
+async def test_door_cover_states(
+    hass: HomeAssistant,
+    pawport: FakePawport,
+    config_entry: MockConfigEntry,
+    indicator: int | None,
+    expected: str,
+) -> None:
+    pawport.door_state()["doorActivityIndicator"] = indicator
+    await setup_entry(hass, config_entry)
+    assert hass.states.get(DOOR).state == expected
 
 
 async def test_sensors(

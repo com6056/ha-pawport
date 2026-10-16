@@ -208,9 +208,9 @@ async def test_settings_are_config_entities(
         entry = registry.async_get(entity_id)
         assert entry is not None
         assert entry.entity_category is EntityCategory.CONFIG
-    hold_open = registry.async_get("switch.dog_door_hold_open")
-    assert hold_open is not None
-    assert hold_open.entity_category is None
+    door = registry.async_get("cover.dog_door")
+    assert door is not None
+    assert door.entity_category is None
 
 
 async def test_settings_unavailable_without_door_state(

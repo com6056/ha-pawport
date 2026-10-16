@@ -164,7 +164,7 @@ async def test_entities_registered(
     entities = er.async_entries_for_config_entry(er.async_get(hass), config_entry.entry_id)
     door_keys = (
         "lock",
-        "hold_open",
+        "door",
         "sound",
         "lights",
         "inside_sensor",
@@ -185,7 +185,7 @@ async def test_entities_registered(
         "lightning_lock_active",
         "firmware",
     )
-    pet_keys = ("location", "last_trip", "trips_today", "time_outside_today")
+    pet_keys = ("last_door_event", "last_trip", "trips_today", "time_outside_today")
     assert sorted(e.unique_id for e in entities) == sorted(
         [f"{DOOR_ID}_{key}" for key in door_keys]
         + [f"pet_{PET_ID}_{key}" for key in pet_keys]

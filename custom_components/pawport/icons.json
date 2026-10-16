@@ -1,12 +1,6 @@
 {
   "entity": {
     "switch": {
-      "hold_open": {
-        "default": "mdi:door-open",
-        "state": {
-          "off": "mdi:door-closed"
-        }
-      },
       "sound": {
         "default": "mdi:volume-high",
         "state": {
@@ -65,11 +59,11 @@
       }
     },
     "sensor": {
-      "location": {
+      "last_door_event": {
         "default": "mdi:paw",
         "state": {
-          "inside": "mdi:home",
-          "outside": "mdi:tree"
+          "came_in": "mdi:home-import-outline",
+          "opened_from_inside": "mdi:home-export-outline"
         }
       },
       "last_trip": {
