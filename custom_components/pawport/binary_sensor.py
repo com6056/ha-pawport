@@ -19,7 +19,7 @@ from .coordinator import PawportCoordinator
 from .entity import (
     PawportDoorEntity,
     PawportTagEntity,
-    async_add_door_entities,
+    async_add_door_feature_entities,
     async_add_new_entities,
 )
 from .models import (
@@ -40,7 +40,8 @@ class PawportBinarySensorDescription(BinarySensorEntityDescription):
     """Describes a door binary sensor."""
 
     value_fn: Callable[[DoorState], bool | None]
-    available_fn: Callable[[DoorState], bool] = lambda _: True
+    # Whether the door has the hardware this reads; no entity until it does.
+    exists_fn: Callable[[DoorState], bool] | None = None
 
 
 BINARY_SENSORS: tuple[PawportBinarySensorDescription, ...] = (
@@ -49,7 +50,7 @@ BINARY_SENSORS: tuple[PawportBinarySensorDescription, ...] = (
         device_class=BinarySensorDeviceClass.BATTERY_CHARGING,
         value_fn=lambda s: s.charging,
         # The battery is an optional accessory.
-        available_fn=lambda s: s.has_battery is True,
+        exists_fn=lambda s: s.has_battery is True,
     ),
     PawportBinarySensorDescription(
         key="plugged_in",
@@ -107,10 +108,14 @@ async def async_setup_entry(
 ) -> None:
     """Set up door and tag binary sensors."""
     coordinator = entry.runtime_data
-    async_add_door_entities(
+    async_add_door_feature_entities(
         coordinator,
         async_add_entities,
-        lambda door_id: [PawportBinarySensor(coordinator, door_id, d) for d in BINARY_SENSORS],
+        BINARY_SENSORS,
+        lambda description, state: (
+            description.exists_fn is None or (state is not None and description.exists_fn(state))
+        ),
+        lambda door_id, description: PawportBinarySensor(coordinator, door_id, description),
     )
     async_add_new_entities(
         coordinator,
@@ -154,11 +159,12 @@ class PawportBinarySensor(PawportDoorEntity, BinarySensorEntity):
 
     @property
     def available(self) -> bool:
-        """Unavailable when the door lacks the hardware this reads."""
+        """Unavailable if the hardware this reads was removed."""
         state = self.door_state
-        return (
-            super().available and state is not None and self.entity_description.available_fn(state)
-        )
+        if not super().available or state is None:
+            return False
+        exists = self.entity_description.exists_fn
+        return exists is None or exists(state)
 
     @property
     def is_on(self) -> bool | None:

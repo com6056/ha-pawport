@@ -22,7 +22,7 @@ from .entity import (
     PawportDoorEntity,
     PawportPetEntity,
     PawportTagEntity,
-    async_add_door_entities,
+    async_add_door_feature_entities,
     async_add_new_entities,
 )
 from .models import DoorState, Pet, Tag
@@ -37,7 +37,8 @@ class DoorSensorDescription(SensorEntityDescription):
     """Describes a door sensor."""
 
     value_fn: Callable[[DoorState], SensorValue]
-    available_fn: Callable[[DoorState], bool] = lambda _: True
+    # Whether the door has the hardware this reads; no entity until it does.
+    exists_fn: Callable[[DoorState], bool] | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -79,7 +80,7 @@ DOOR_SENSORS: tuple[DoorSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda s: s.battery_level,
         # The battery is an optional accessory; without one the door reads 0.
-        available_fn=lambda s: s.has_battery is True,
+        exists_fn=lambda s: s.has_battery is True,
     ),
 )
 
@@ -144,10 +145,14 @@ async def async_setup_entry(
 ) -> None:
     """Set up door, pet, and tag sensors."""
     coordinator = entry.runtime_data
-    async_add_door_entities(
+    async_add_door_feature_entities(
         coordinator,
         async_add_entities,
-        lambda door_id: [DoorSensor(coordinator, door_id, d) for d in DOOR_SENSORS],
+        DOOR_SENSORS,
+        lambda description, state: (
+            description.exists_fn is None or (state is not None and description.exists_fn(state))
+        ),
+        lambda door_id, description: DoorSensor(coordinator, door_id, description),
     )
     async_add_new_entities(
         coordinator,
@@ -170,11 +175,12 @@ class DoorSensor(PawportDoorEntity, SensorEntity):
 
     @property
     def available(self) -> bool:
-        """Unavailable when the door lacks the hardware this reads."""
+        """Unavailable if the hardware this reads was removed."""
         state = self.door_state
-        return (
-            super().available and state is not None and self.entity_description.available_fn(state)
-        )
+        if not super().available or state is None:
+            return False
+        exists = self.entity_description.exists_fn
+        return exists is None or exists(state)
 
     @property
     def native_value(self) -> SensorValue:

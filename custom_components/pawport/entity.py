@@ -183,6 +183,35 @@ def async_add_new_entities(
     coordinator.config_entry.async_on_unload(coordinator.async_add_listener(_add_new))
 
 
+def async_add_door_feature_entities[D: EntityDescription](
+    coordinator: PawportCoordinator,
+    async_add_entities: AddConfigEntryEntitiesCallback,
+    descriptions: Iterable[D],
+    exists: Callable[[D, DoorState | None], bool],
+    factory: Callable[[str, D], Entity],
+) -> None:
+    """Add an entity per door and description once the door has that feature.
+
+    Like core's ``exists_fn``: a door without, say, a battery gets no battery
+    entities at all, and they appear on the poll after one is fitted.
+    """
+    by_key = {d.key: d for d in descriptions}
+
+    def ids(account: Account) -> list[str]:
+        return [
+            f"{door_id}/{key}"
+            for door_id, door in account.doors.items()
+            for key, description in by_key.items()
+            if exists(description, door.state)
+        ]
+
+    def build(object_id: str) -> list[Entity]:
+        door_id, _, key = object_id.rpartition("/")
+        return [factory(door_id, by_key[key])]
+
+    async_add_new_entities(coordinator, async_add_entities, ids, build)
+
+
 def async_add_door_entities(
     coordinator: PawportCoordinator,
     async_add_entities: AddConfigEntryEntitiesCallback,

@@ -117,13 +117,14 @@ async def test_sensors(
     ("charger", "battery", "charging", "plugged_in"),
     [
         # No battery fitted: the door reads 0%, which would be misleading.
-        (0, "unavailable", "unavailable", "on"),
+        # No battery fitted: no battery entities at all, rather than a 0%.
+        (0, None, None, "on"),
         (1, "87", "off", "on"),
         (2, "87", "on", "on"),
         (3, "87", "off", "off"),
         # A value the app doesn't know.
-        (9, "unavailable", "unavailable", "unknown"),
-        (None, "unavailable", "unavailable", "unknown"),
+        (9, None, None, "unknown"),
+        (None, None, None, "unknown"),
     ],
 )
 async def test_power(
@@ -131,15 +132,20 @@ async def test_power(
     pawport: FakePawport,
     config_entry: MockConfigEntry,
     charger: int | None,
-    battery: str,
-    charging: str,
+    battery: str | None,
+    charging: str | None,
     plugged_in: str,
 ) -> None:
     pawport.door_state()["chargerDetails"] = charger
     await setup_entry(hass, config_entry)
-    assert hass.states.get(BATTERY).state == battery
-    assert hass.states.get(CHARGING).state == charging
+    assert _state(hass, BATTERY) == battery
+    assert _state(hass, CHARGING) == charging
     assert hass.states.get(PLUGGED_IN).state == plugged_in
+
+
+def _state(hass: HomeAssistant, entity_id: str) -> str | None:
+    state = hass.states.get(entity_id)
+    return state.state if state else None
 
 
 async def test_battery_fitted_later(
@@ -148,15 +154,22 @@ async def test_battery_fitted_later(
     config_entry: MockConfigEntry,
     freezer: FrozenDateTimeFactory,
 ) -> None:
-    """The battery entities come alive without a restart once a battery is fitted."""
+    """The battery entities appear without a restart once a battery is fitted."""
     pawport.door_state().update(chargerDetails=0, batteryChargeLevel=0)
     await setup_entry(hass, config_entry)
-    assert hass.states.get(BATTERY).state == "unavailable"
+    assert hass.states.get(BATTERY) is None
+    assert hass.states.get(CHARGING) is None
 
     pawport.door_state().update(chargerDetails=2, batteryChargeLevel=40)
     await tick(hass, freezer)
     assert hass.states.get(BATTERY).state == "40"
     assert hass.states.get(CHARGING).state == "on"
+
+    # Taken out again, they stay but go unavailable rather than reading 0%.
+    pawport.door_state().update(chargerDetails=0, batteryChargeLevel=0)
+    await tick(hass, freezer)
+    assert hass.states.get(BATTERY).state == "unavailable"
+    assert hass.states.get(CHARGING).state == "unavailable"
 
 
 async def test_sensor_modules(
@@ -200,8 +213,9 @@ async def test_door_without_state_is_unavailable(
     pawport.context["doorStates"] = []
     await setup_entry(hass, config_entry)
     assert hass.states.get(LOCK).state == "unavailable"
-    assert hass.states.get(BATTERY).state == "unavailable"
-    assert hass.states.get(CHARGING).state == "unavailable"
+    assert hass.states.get(PLUGGED_IN).state == "unavailable"
+    # Whether a battery is fitted can't be known yet, so none is created.
+    assert hass.states.get(BATTERY) is None
 
 
 async def test_command_failure(
