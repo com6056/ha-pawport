@@ -192,6 +192,9 @@ class FakePawport:
         self.password_supported = False
         self.overrides: dict[str, AiohttpClientMockResponse | Exception] = {}
         self.commands: list[tuple[str, dict[str, Any]]] = []
+        # When set, door commands are accepted but change nothing, like the
+        # real cloud in the seconds before a change lands.
+        self.lagging = False
         self.codes_sent: list[str] = []
         self.mocker: AiohttpClientMocker | None = None
 
@@ -279,7 +282,7 @@ class FakePawport:
                     schedule["isEnabled"] = variables["enabled"]
             return self._respond(method, url, 200, {"data": {operation: True}})
         self.commands.append((variables["command"], variables["arguments"]))
-        state = self.door_state()
+        state = copy.deepcopy(self.door_state()) if self.lagging else self.door_state()
         if variables["command"] == "door_lock":
             state["doorLocked"] = 1 if variables["arguments"]["locked"] else 0
         elif variables["command"] == "force_open":
