@@ -155,7 +155,7 @@ The integration polls the Pawport cloud every 30 seconds and right after every c
 
 ## Known limitations
 
-- Schedules can be turned on and off, but creating or editing them, light color, and per-pet door access stay in the Pawport app.
+- Schedules can be turned on and off, but creating or editing them, and per-pet door access, stay in the Pawport app.
 - Firmware updates are shown but not installed from Home Assistant.
 - State can lag the door by up to 30 seconds when it changes outside Home Assistant.
 
