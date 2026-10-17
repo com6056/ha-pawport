@@ -180,6 +180,7 @@ async def test_entities_registered(
         "battery",
         "charging",
         "plugged_in",
+        "problem",
         "online",
         "rain_lock_active",
         "lightning_lock_active",

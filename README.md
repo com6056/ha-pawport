@@ -24,6 +24,7 @@ Each door, pet and Smart Pet Tag on the account becomes a device. New ones appea
 | Battery | Sensor | Percent charge, only with the optional battery fitted |
 | Charging | Binary sensor | Only with the optional battery fitted |
 | Plugged in | Binary sensor | |
+| Problem | Binary sensor | On when the door reports a jam or an alarm |
 | Connectivity | Binary sensor | Off while the Pawport cloud can't reach the door |
 | Inside sensor, Outside sensor | Binary sensor | Whether each of the door's sensors is connected |
 | Rain lock active, Lightning lock active | Binary sensor | On while a weather lock is holding the door shut |

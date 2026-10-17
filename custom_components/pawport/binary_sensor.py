@@ -65,6 +65,12 @@ BINARY_SENSORS: tuple[PawportBinarySensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda s: s.online,
     ),
+    # On after the door reports a jam or an alarm, until it moves normally again.
+    PawportBinarySensorDescription(
+        key="problem",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=lambda s: s.problem,
+    ),
     # On while the weather lock is holding the door shut.
     PawportBinarySensorDescription(
         key="rain_lock_active",

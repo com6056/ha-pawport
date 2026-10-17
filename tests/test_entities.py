@@ -254,3 +254,18 @@ async def test_diagnostics_redacts(
     assert TOKEN not in text
     assert EMAIL not in text
     assert diagnostics["account"]["doorStates"][0]["batteryChargeLevel"] == 87
+
+
+@pytest.mark.parametrize(("indicator", "expected"), [(20, "off"), (5, "on"), (0, "unknown")])
+async def test_problem_sensor(
+    hass: HomeAssistant,
+    pawport: FakePawport,
+    config_entry: MockConfigEntry,
+    indicator: int,
+    expected: str,
+) -> None:
+    pawport.door_state()["doorActivityIndicator"] = indicator
+    await setup_entry(hass, config_entry)
+    state = hass.states.get("binary_sensor.dog_door_problem")
+    assert state.state == expected
+    assert state.attributes["device_class"] == "problem"

@@ -339,3 +339,24 @@ def test_door_open_state(indicator: int | None, open_state: str | None) -> None:
         {"doorID": "d", "doorActivityIndicator": indicator, "behavior": None}
     )
     assert state.open_state == open_state
+
+
+@pytest.mark.parametrize(
+    ("indicator", "problem"),
+    [
+        (5, True),  # JAM
+        (21, True),  # JAM from a panel button
+        (37, True),  # JAM from a command
+        (7, True),  # ALARM
+        (6, False),  # SELF_TUNING, the door calibrating itself
+        (3, False),
+        (20, False),
+        (0, None),  # UNKNOWN
+        (4294967295, None),  # UNASSIGNED
+        (53, None),
+        (None, None),
+    ],
+)
+def test_door_problem(indicator: int | None, problem: bool | None) -> None:
+    state = DoorState.from_api({"doorID": "d", "doorActivityIndicator": indicator})
+    assert state.problem is problem

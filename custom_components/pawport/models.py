@@ -48,6 +48,8 @@ _TAG_RANGE_VOLTS = 1.2
 # it (OPEN_COMMAND is 35, CLOSED_BUTTON 20). 5-7 are jam, self-tuning and
 # alarm. The app's isDoorOpen is "opening or open, from any source".
 _ACTIVITY_STATES = {1: "opening", 2: "closing", 3: "open", 4: "closed"}
+_ACTIVITY_SELF_TUNING = 6
+_ACTIVITY_PROBLEMS = frozenset({5, 7})  # JAM, ALARM
 _ACTIVITY_SOURCES = (0, 16, 32)
 
 # The door reports some brightness levels with a +128 flag; the app subtracts
@@ -160,6 +162,27 @@ class DoorState:
     lightning_lock_active: bool | None = None
     raw: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
+    def _activity_motion(self) -> int | None:
+        """Return the low bits of a recognised activity code, or None."""
+        if self.activity is None or self.activity < 0:
+            return None
+        source, motion = self.activity & ~0xF, self.activity & 0xF
+        return motion if source in _ACTIVITY_SOURCES else None
+
+    @property
+    def problem(self) -> bool | None:
+        """Return whether the door last reported a jam or an alarm.
+
+        Self-tuning is the door calibrating itself, not a fault. Anything the
+        app doesn't name (UNKNOWN, UNASSIGNED) reads as unknown.
+        """
+        motion = self._activity_motion()
+        if motion in _ACTIVITY_PROBLEMS:
+            return True
+        if motion in _ACTIVITY_STATES or motion == _ACTIVITY_SELF_TUNING:
+            return False
+        return None
+
     @property
     def open_state(self) -> str | None:
         """Return opening, open, closing or closed, or None for anything else.
@@ -167,12 +190,8 @@ class DoorState:
         ``behavior`` looks like the obvious source but stays null while the
         door is held open (seen live in October 2026); the app reads this.
         """
-        if self.activity is None or self.activity < 0:
-            return None
-        source, motion = self.activity & ~0xF, self.activity & 0xF
-        if source not in _ACTIVITY_SOURCES:
-            return None
-        return _ACTIVITY_STATES.get(motion)
+        motion = self._activity_motion()
+        return None if motion is None else _ACTIVITY_STATES.get(motion)
 
     @property
     def has_battery(self) -> bool | None:
