@@ -287,7 +287,12 @@ class PawportClient:
                 except ValueError:
                     payload = None
                 return resp.status, payload
-        except (aiohttp.ClientError, TimeoutError) as err:
+        except TimeoutError as err:
+            # A timeout carries no message, which logged as a bare "Cannot reach Pawport:".
+            raise PawportConnectionError(
+                f"Pawport didn't answer within {TIMEOUT.total:.0f} seconds"
+            ) from err
+        except aiohttp.ClientError as err:
             raise PawportConnectionError(f"Cannot reach Pawport: {err}") from err
 
 

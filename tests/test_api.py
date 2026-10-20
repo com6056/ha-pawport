@@ -183,7 +183,11 @@ async def test_graphql_needs_token(client: PawportClient) -> None:
         (respond(200, {"data": {"userContext": None}}), PawportApiError, "no userContext"),
         (respond(502), PawportConnectionError, "HTTP 502"),
         (respond(200, exc=aiohttp.ClientError("reset")), PawportConnectionError, "reset"),
-        (respond(200, exc=TimeoutError()), PawportConnectionError, "Cannot reach"),
+        (
+            respond(200, exc=TimeoutError()),
+            PawportConnectionError,
+            "didn't answer within 30 seconds",
+        ),
     ],
 )
 async def test_graphql_errors(
