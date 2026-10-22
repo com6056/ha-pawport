@@ -114,6 +114,28 @@ async def test_tag_entities(
     assert device.model == "Smart Pet Tag"
 
 
+async def test_tag_junk_battery_reading_is_unknown(
+    hass: HomeAssistant,
+    pawport: FakePawport,
+    config_entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    await setup_entry(hass, config_entry)
+    # Tags sometimes report 1 V right after a door pass. That isn't an empty
+    # battery, so it reads unknown rather than 0% until a real reading returns.
+    pawport.context["tags"][0]["batteryLevel"] = 1
+    freezer.tick(SCAN_INTERVAL)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.biscuit_s_tag_battery").state == "unknown"
+
+    pawport.context["tags"][0]["batteryLevel"] = 3.1
+    freezer.tick(SCAN_INTERVAL)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.biscuit_s_tag_battery").state == "92"
+
+
 async def test_pets_and_tags_come_and_go(
     hass: HomeAssistant,
     pawport: FakePawport,
@@ -187,6 +209,13 @@ def test_tag_model_edge_cases() -> None:
     assert Tag.from_api({"tagID": "t", "batteryLevel": 3.24}).battery_level == 100
     assert Tag.from_api({"tagID": "t", "batteryLevel": 2.6}).battery_level == 50
     assert Tag.from_api({"tagID": "t", "batteryLevel": 1.9}).battery_level == 0
+    assert Tag.from_api({"tagID": "t", "batteryLevel": 2.0}).battery_level == 0
+    assert Tag.from_api({"tagID": "t", "batteryLevel": 1.5}).battery_voltage == 1.5
+    # A junk reading (seen live right after a door pass) is no reading at all.
+    for junk in (1, 0, 1.49, -1):
+        tag = Tag.from_api({"tagID": "t", "batteryLevel": junk})
+        assert tag.battery_voltage is None
+        assert tag.battery_level is None
     assert Tag.from_api({"tagID": "t", "batteryLevel": 3}).battery_voltage == 3.0
     assert Tag.from_api({"tagID": "t", "batteryLevel": True}).battery_level is None
     tag = Tag.from_api({"tagID": "t"})

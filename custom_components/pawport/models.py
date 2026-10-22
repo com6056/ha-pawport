@@ -42,6 +42,11 @@ SENSOR_EXTERNAL = 4
 # shows (volts - 2.0) / 1.2 as the charge, so 2.0 V is empty and 3.2 V full.
 _TAG_EMPTY_VOLTS = 2.0
 _TAG_RANGE_VOLTS = 1.2
+# Tags sometimes report 1 V right after a door pass and are back to ~3.1 V on
+# the next one. The app shows that as an empty battery; this floor is ours,
+# from those live readings. A coin cell under 2.0 V is already flat to the
+# tag, so anything below 1.5 V is a junk reading, not a dying cell.
+_TAG_MIN_PLAUSIBLE_VOLTS = 1.5
 
 # doorStates.doorActivityIndicator, the app's doorActivityIndicatorCodes. The
 # low bits are the motion and +16/+32 say a panel button or a command caused
@@ -431,7 +436,9 @@ class Tag:
             pet_id=str(pet_id) if pet_id else None,
             battery_voltage=(
                 float(volts)
-                if isinstance(volts, int | float) and not isinstance(volts, bool)
+                if isinstance(volts, int | float)
+                and not isinstance(volts, bool)
+                and volts >= _TAG_MIN_PLAUSIBLE_VOLTS
                 else None
             ),
             is_online=_as_bool(data.get("isOnline")),
