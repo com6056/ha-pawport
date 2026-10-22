@@ -1,6 +1,11 @@
 name: Release
 
-# Push a tag to release: `git tag v1.2.3 && git push origin v1.2.3`. A tag with
+# Push an annotated tag to release; its message is the release notes:
+#   git tag -a v1.2.3 -F notes.md --cleanup=verbatim && git push origin v1.2.3
+# --cleanup=verbatim keeps markdown headings, which git otherwise strips as
+# comments. The notes go above GitHub's generated list, which only shows merged
+# pull requests and so misses every change committed straight to main. A
+# lightweight tag fails the run instead of releasing with no notes. A tag with
 # a suffix (v1.2.3-beta.1) becomes a pre-release, which HACS offers only to
 # users who opt into betas. The release is created here with pawport.zip
 # already attached, built with the tag's version in manifest.json, because the
@@ -37,9 +42,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
+          # Read the annotation from the API, not the checkout, which can turn
+          # an annotated tag lightweight (actions/checkout#290).
+          ref=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG")
+          if [[ "$(jq -r .object.type <<<"$ref")" != tag ]]; then
+            echo "::error::$TAG is a lightweight tag. Delete it and push an annotated one whose message is the release notes."
+            exit 1
+          fi
+          # A signed tag's message carries its signature block; drop it.
+          notes=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$(jq -r .object.sha <<<"$ref")" --jq .message |
+            sed '/^-----BEGIN [A-Z ]*SIGNATURE-----$/,$d')
+          if [[ -z "${notes//[[:space:]]/}" ]]; then
+            echo "::error::$TAG has an empty message. Delete it and push one whose message is the release notes."
+            exit 1
+          fi
           prerelease=()
           if [[ "$TAG" == *-* ]]; then
             prerelease=(--prerelease)
           fi
           gh release create "$TAG" pawport.zip --repo "$GITHUB_REPOSITORY" \
-            --verify-tag --generate-notes "${prerelease[@]}"
+            --verify-tag --notes "$notes" --generate-notes "${prerelease[@]}"

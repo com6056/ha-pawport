@@ -186,7 +186,7 @@ scripts/test      # tests with coverage
 scripts/develop   # run Home Assistant at http://localhost:8123 with this integration
 ```
 
-Release by pushing a tag, like `git tag v1.2.3 && git push origin v1.2.3` (a `-beta.N` suffix makes it a pre-release). A workflow creates the release with `pawport.zip` attached and the version set from the tag. Releases can't be changed once they're out.
+Release by pushing an annotated tag whose message is the release notes, like `git tag -a v1.2.3 -F notes.md --cleanup=verbatim && git push origin v1.2.3` (a `-beta.N` suffix makes it a pre-release). A workflow creates the release with `pawport.zip` attached and the version set from the tag. The zip can't be changed once a release is out.
 
 ## License
 

@@ -25,6 +25,7 @@ Notes for coding agents (and people) working in this repo. User-facing docs are 
 - `quality_scale.yaml` tracks the HA Integration Quality Scale. Update it when a rule's status changes.
 - Reverse-engineering material (app dumps, captures) is never committed here.
 - `manifest.json` keeps version `0.0.0`; the release workflow sets the real one from the pushed tag. Releases are immutable, so the workflow must create a release with its asset in one step, never publish first and upload after.
+- Release notes are the annotated tag's message (`git tag -a vX.Y.Z -F notes.md --cleanup=verbatim`, which keeps markdown headings). The workflow puts them above GitHub's generated list, which only covers merged pull requests, and refuses a lightweight tag.
 
 ## Commands
 
