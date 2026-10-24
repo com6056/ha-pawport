@@ -7,9 +7,13 @@ from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import device_registry as dr, entity_registry as er
-from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+    mock_restore_cache_with_extra_data,
+)
 
 from custom_components.pawport.const import DOMAIN, SCAN_INTERVAL
 from custom_components.pawport.models import Account, Pet, Tag
@@ -114,26 +118,69 @@ async def test_tag_entities(
     assert device.model == "Smart Pet Tag"
 
 
-async def test_tag_junk_battery_reading_is_unknown(
+async def test_tag_junk_battery_reading_keeps_last_value(
     hass: HomeAssistant,
     pawport: FakePawport,
     config_entry: MockConfigEntry,
     freezer: FrozenDateTimeFactory,
 ) -> None:
     await setup_entry(hass, config_entry)
-    # Tags sometimes report 1 V right after a door pass. That isn't an empty
-    # battery, so it reads unknown rather than 0% until a real reading returns.
+    assert hass.states.get("sensor.biscuit_s_tag_battery").state == "80"
+    # Tags sometimes report 1 V right after a door pass. The cell hasn't
+    # changed, so the last good reading stands until a real one replaces it.
     pawport.context["tags"][0]["batteryLevel"] = 1
     freezer.tick(SCAN_INTERVAL)
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
-    assert hass.states.get("sensor.biscuit_s_tag_battery").state == "unknown"
+    assert hass.states.get("sensor.biscuit_s_tag_battery").state == "80"
 
     pawport.context["tags"][0]["batteryLevel"] = 3.1
     freezer.tick(SCAN_INTERVAL)
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
     assert hass.states.get("sensor.biscuit_s_tag_battery").state == "92"
+
+
+async def test_tag_battery_restored_over_a_junk_reading(
+    hass: HomeAssistant, pawport: FakePawport, config_entry: MockConfigEntry
+) -> None:
+    # Home Assistant restarted while the tag's last report was junk.
+    pawport.context["tags"][0]["batteryLevel"] = 1
+    mock_restore_cache_with_extra_data(
+        hass,
+        [
+            (
+                State("sensor.biscuit_s_tag_battery", "75"),
+                {"native_value": 75, "native_unit_of_measurement": "%"},
+            )
+        ],
+    )
+    await setup_entry(hass, config_entry)
+    assert hass.states.get("sensor.biscuit_s_tag_battery").state == "75"
+
+
+async def test_tag_battery_unknown_without_any_good_reading(
+    hass: HomeAssistant, pawport: FakePawport, config_entry: MockConfigEntry
+) -> None:
+    pawport.context["tags"][0]["batteryLevel"] = 1
+    await setup_entry(hass, config_entry)
+    assert hass.states.get("sensor.biscuit_s_tag_battery").state == "unknown"
+
+
+async def test_tag_battery_good_reading_beats_restored_value(
+    hass: HomeAssistant, pawport: FakePawport, config_entry: MockConfigEntry
+) -> None:
+    mock_restore_cache_with_extra_data(
+        hass,
+        [
+            (
+                State("sensor.biscuit_s_tag_battery", "75"),
+                {"native_value": 75, "native_unit_of_measurement": "%"},
+            )
+        ],
+    )
+    await setup_entry(hass, config_entry)
+    assert hass.states.get("sensor.biscuit_s_tag_battery").state == "80"
 
 
 async def test_pets_and_tags_come_and_go(

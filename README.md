@@ -64,7 +64,7 @@ There's no inside or outside sensor on purpose. A pet opening the door from insi
 
 | Entity | Type | Notes |
 | --- | --- | --- |
-| Battery | Sensor | Unknown while the tag sends a junk reading |
+| Battery | Sensor | Keeps its last good reading through a junk one |
 | Battery voltage | Sensor | The coin cell's voltage, off by default |
 | Connectivity | Binary sensor | |
 

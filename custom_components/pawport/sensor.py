@@ -7,13 +7,14 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from homeassistant.components.sensor import (
+    RestoreSensor,
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
     SensorStateClass,
 )
 from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfElectricPotential, UnitOfTime
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
@@ -201,13 +202,38 @@ class PetSensor(PawportPetEntity, SensorEntity):
         return self.entity_description.value_fn(pet) if pet else None
 
 
-class TagSensor(PawportTagEntity, SensorEntity):
-    """A tag reading."""
+class TagSensor(PawportTagEntity, RestoreSensor):
+    """A tag reading that keeps its last good value.
+
+    A tag only reports when it passes the door, and sometimes reports a junk
+    battery voltage that the model turns into no reading. The cell hasn't
+    changed, so the last good value stands until the next real one, across a
+    restart too. A tag removed from the account still goes unavailable.
+    """
 
     entity_description: TagSensorDescription
+    _last: SensorValue = None
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the last good value, then take the current reading."""
+        await super().async_added_to_hass()
+        data = await self.async_get_last_sensor_data()
+        if data is not None and isinstance(data.native_value, int | float):
+            self._last = data.native_value
+        self._update_last()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        self._update_last()
+        super()._handle_coordinator_update()
+
+    def _update_last(self) -> None:
+        tag = self.tag
+        value = self.entity_description.value_fn(tag) if tag else None
+        if value is not None:
+            self._last = value
 
     @property
     def native_value(self) -> SensorValue:
-        """Return the reading."""
-        tag = self.tag
-        return self.entity_description.value_fn(tag) if tag else None
+        """Return the last good reading."""
+        return self._last
