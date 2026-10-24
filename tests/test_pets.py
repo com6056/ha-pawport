@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 from datetime import UTC, datetime
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant, State
@@ -16,7 +17,7 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.pawport.const import DOMAIN, SCAN_INTERVAL
-from custom_components.pawport.models import Account, Pet, Tag
+from custom_components.pawport.models import Account, Pet, Tag, timezone_names
 
 from .conftest import PET, PET_ID, TAG, TAG_ID, FakePawport, setup_entry
 
@@ -99,6 +100,22 @@ async def test_pet_without_activity(
     assert hass.states.get("sensor.biscuit_last_door_event").state == "unknown"
     assert hass.states.get("sensor.biscuit_last_trip").state == "unknown"
     assert hass.states.get("sensor.biscuit_trips_outside_today").state == "0"
+
+
+async def test_unknown_home_timezone(
+    hass: HomeAssistant,
+    pawport: FakePawport,
+    config_entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    # A zone name Home Assistant can't resolve leaves the pet on UTC days
+    # instead of failing the poll.
+    pawport.context["homes"][0]["timezone"] = "Not/AZone"
+    freezer.move_to(SAME_DAY)
+    await setup_entry(hass, config_entry)
+    assert hass.states.get("sensor.biscuit_last_door_event").state == "came_in"
+    # The home-local 10:30 trip reads as UTC, not as Los Angeles time.
+    assert hass.states.get("sensor.biscuit_last_trip").state == "2026-10-06T10:30:00+00:00"
 
 
 async def test_tag_entities(
@@ -272,25 +289,27 @@ def test_tag_model_edge_cases() -> None:
 
 
 def _account(homes: list[dict[str, str]], transit_at: str, door_id: str = "d1") -> Account:
-    return Account.from_api(
-        {
-            "userID": 1,
-            "homes": homes,
-            "doors": [{"doorID": "d1", "homeID": "h1"}, {"doorID": "d2", "homeID": "h2"}],
-            "pets": [
-                {
-                    "petID": "p",
-                    "latestActivity": {
-                        "activity": {
-                            "transits": [
-                                {"doorID": door_id, "transitAt": transit_at, "location": 1}
-                            ]
-                        }
-                    },
-                }
-            ],
-        }
-    )
+    context = {
+        "userID": 1,
+        "homes": homes,
+        "doors": [{"doorID": "d1", "homeID": "h1"}, {"doorID": "d2", "homeID": "h2"}],
+        "pets": [
+            {
+                "petID": "p",
+                "latestActivity": {
+                    "activity": {
+                        "transits": [{"doorID": door_id, "transitAt": transit_at, "location": 1}]
+                    }
+                },
+            }
+        ],
+    }
+    # The caller resolves the zones; one the database lacks is simply absent.
+    timezones = {}
+    for name in timezone_names(context):
+        with contextlib.suppress(ZoneInfoNotFoundError):
+            timezones[name] = ZoneInfo(name)
+    return Account.from_api(context, timezones)
 
 
 def test_transit_times_use_the_door_home_zone() -> None:

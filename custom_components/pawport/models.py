@@ -14,7 +14,6 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, tzinfo
 from typing import Any
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # PET_TRANSIT_LOCATION in the app: where the pet was when it opened the door.
 TRANSIT_FROM_INSIDE = 1
@@ -81,14 +80,17 @@ def _parse_time(value: Any, zone: tzinfo | None = None) -> datetime | None:
     return parsed
 
 
-def _zone(name: Any) -> tzinfo | None:
-    """Return the named IANA time zone, or None if it is missing or unknown."""
-    if not isinstance(name, str) or not name:
-        return None
-    try:
-        return ZoneInfo(name)
-    except ZoneInfoNotFoundError, ValueError:
-        return None
+def timezone_names(user_context: dict[str, Any]) -> set[str]:
+    """Return the time zone names the account's homes use.
+
+    Resolving a zone can read the zone database from disk, so the caller does
+    that off the event loop and hands the results to ``Account.from_api``.
+    """
+    return {
+        name
+        for home in user_context.get("homes") or []
+        if isinstance(home, dict) and isinstance(name := home.get("timezone"), str) and name
+    }
 
 
 def _parse_date(value: Any) -> date | None:
@@ -533,8 +535,15 @@ class Account:
     raw: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
-    def from_api(cls, user_context: dict[str, Any]) -> Account:
-        """Build from the ``userContext`` object."""
+    def from_api(
+        cls, user_context: dict[str, Any], timezones: Mapping[str, tzinfo] | None = None
+    ) -> Account:
+        """Build from the ``userContext`` object.
+
+        ``timezones`` maps the names from ``timezone_names`` to resolved
+        zones. A home whose zone is missing from it falls back to the
+        account's first known zone, then to UTC.
+        """
         states: dict[str, DoorState] = _by_id(
             user_context.get("doorStates"), "doorID", DoorState.from_api
         )
@@ -559,7 +568,7 @@ class Account:
             if (
                 isinstance(home, dict)
                 and home.get("homeID")
-                and (zone := _zone(home.get("timezone"))) is not None
+                and (zone := (timezones or {}).get(str(home.get("timezone")))) is not None
             ):
                 homes[str(home["homeID"])] = zone
         zones = {

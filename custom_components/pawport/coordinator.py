@@ -9,10 +9,11 @@ from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .api import PawportAuthError, PawportClient, PawportError
 from .const import CONF_AUTH_TOKEN, CONF_REFRESH_TOKEN, DOMAIN, LOGGER, SCAN_INTERVAL
-from .models import Account
+from .models import Account, timezone_names
 
 if TYPE_CHECKING:
     from . import PawportConfigEntry
@@ -39,7 +40,7 @@ class PawportCoordinator(DataUpdateCoordinator[Account]):
     async def _async_update_data(self) -> Account:
         """Fetch the account, signing in again once if the token was rejected."""
         try:
-            return await self._with_relogin(self.client.get_account)
+            context = await self._with_relogin(self.client.get_user_context)
         except PawportAuthError as err:
             raise ConfigEntryAuthFailed(
                 translation_domain=DOMAIN, translation_key="auth_failed"
@@ -50,6 +51,14 @@ class PawportCoordinator(DataUpdateCoordinator[Account]):
                 translation_key="update_failed",
                 translation_placeholders={"error": str(err)},
             ) from err
+        # Resolving a zone can read the zone database from disk, which must
+        # not happen on the event loop; Home Assistant's helper caches it.
+        timezones = {
+            name: zone
+            for name in timezone_names(context)
+            if (zone := await dt_util.async_get_time_zone(name)) is not None
+        }
+        return Account.from_api(context, timezones)
 
     async def async_command(self, command: Callable[[], Awaitable[None]]) -> None:
         """Run a door command, then poll at once so entities show the result."""

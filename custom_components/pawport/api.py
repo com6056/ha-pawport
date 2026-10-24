@@ -11,8 +11,9 @@ door commands are GraphQL at ``/graphql``, authenticated with an
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 from typing import Any, Final
 
 import aiohttp
@@ -180,13 +181,17 @@ class PawportClient:
         )
         return self._adopt(parse_session(payload))
 
-    async def get_account(self) -> Account:
-        """Fetch the account, its doors, and their live state."""
+    async def get_user_context(self) -> dict[str, Any]:
+        """Fetch the raw ``userContext``: the account, its doors, and their live state."""
         data = await self._graphql("authDataGet", ACCOUNT_QUERY)
         context = data.get("userContext")
         if not isinstance(context, dict):
             raise PawportApiError("authDataGet returned no userContext")
-        return Account.from_api(context)
+        return context
+
+    async def get_account(self, timezones: Mapping[str, tzinfo] | None = None) -> Account:
+        """Fetch the account and build it with already-resolved time zones."""
+        return Account.from_api(await self.get_user_context(), timezones)
 
     async def send_door_command(
         self, door_id: str, command: str, arguments: dict[str, Any] | None = None
