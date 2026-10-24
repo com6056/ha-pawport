@@ -105,7 +105,7 @@ async def test_pet_without_activity(
     assert hass.states.get("sensor.biscuit_trips_outside_today").state == "0"
 
 
-@pytest.mark.parametrize("name", ["Not/AZone", "../x"])
+@pytest.mark.parametrize("name", ["Not/AZone", "../x", "a" * 300])
 async def test_unknown_home_timezone(
     hass: HomeAssistant,
     pawport: FakePawport,
@@ -124,16 +124,23 @@ async def test_unknown_home_timezone(
 
 
 async def test_home_timezone_resolved_off_the_event_loop(
-    hass: HomeAssistant, pawport: FakePawport, config_entry: MockConfigEntry
+    hass: HomeAssistant,
+    pawport: FakePawport,
+    config_entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
 ) -> None:
     # The zone database can be read from disk, so the coordinator goes through
-    # Home Assistant's async helper rather than building zones itself.
+    # Home Assistant's async helper rather than building zones itself, once
+    # per zone name rather than on every poll.
     with patch(
         "custom_components.pawport.coordinator.dt_util.async_get_time_zone",
         wraps=dt_util.async_get_time_zone,
     ) as resolve:
         await setup_entry(hass, config_entry)
-    resolve.assert_awaited_with(HOME_TIMEZONE)
+        freezer.tick(SCAN_INTERVAL)
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done(wait_background_tasks=True)
+    resolve.assert_awaited_once_with(HOME_TIMEZONE)
 
 
 async def test_tag_entities(

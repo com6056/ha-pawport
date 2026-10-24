@@ -37,6 +37,9 @@ class PawportCoordinator(DataUpdateCoordinator[Account]):
             update_interval=SCAN_INTERVAL,
         )
         self.client = client
+        # Resolved once per zone name, failures included, since every lookup
+        # Home Assistant can't answer from cache costs an executor job.
+        self._timezones: dict[str, tzinfo | None] = {}
 
     async def _async_update_data(self) -> Account:
         """Fetch the account, signing in again once if the token was rejected."""
@@ -53,16 +56,18 @@ class PawportCoordinator(DataUpdateCoordinator[Account]):
                 translation_placeholders={"error": str(err)},
             ) from err
         # Resolving a zone can read the zone database from disk, which must
-        # not happen on the event loop; Home Assistant's helper caches it.
-        timezones: dict[str, tzinfo] = {}
-        for name in timezone_names(context):
+        # not happen on the event loop, so it goes through Home Assistant's
+        # async helper the first time each name is seen.
+        for name in timezone_names(context) - self._timezones.keys():
             try:
-                zone = await dt_util.async_get_time_zone(name)
-            except ValueError:  # a malformed name, like a path; only "not found" is caught
-                zone = None
-            if zone is not None:
-                timezones[name] = zone
-        return Account.from_api(context, timezones)
+                self._timezones[name] = await dt_util.async_get_time_zone(name)
+            # Only "not found" is caught there. A malformed name (a path) raises
+            # ValueError, and one too long for the filesystem OSError.
+            except ValueError, OSError:
+                self._timezones[name] = None
+        return Account.from_api(
+            context, {name: zone for name, zone in self._timezones.items() if zone is not None}
+        )
 
     async def async_command(self, command: Callable[[], Awaitable[None]]) -> None:
         """Run a door command, then poll at once so entities show the result."""
