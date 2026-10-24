@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from datetime import tzinfo
 from typing import TYPE_CHECKING
 
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
@@ -53,11 +54,14 @@ class PawportCoordinator(DataUpdateCoordinator[Account]):
             ) from err
         # Resolving a zone can read the zone database from disk, which must
         # not happen on the event loop; Home Assistant's helper caches it.
-        timezones = {
-            name: zone
-            for name in timezone_names(context)
-            if (zone := await dt_util.async_get_time_zone(name)) is not None
-        }
+        timezones: dict[str, tzinfo] = {}
+        for name in timezone_names(context):
+            try:
+                zone = await dt_util.async_get_time_zone(name)
+            except ValueError:  # a malformed name, like a path; only "not found" is caught
+                zone = None
+            if zone is not None:
+                timezones[name] = zone
         return Account.from_api(context, timezones)
 
     async def async_command(self, command: Callable[[], Awaitable[None]]) -> None:

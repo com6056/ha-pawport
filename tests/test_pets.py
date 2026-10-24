@@ -5,11 +5,14 @@ from __future__ import annotations
 import contextlib
 import copy
 from datetime import UTC, datetime
+from unittest.mock import patch
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.util import dt as dt_util
+import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
@@ -19,7 +22,7 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.pawport.const import DOMAIN, SCAN_INTERVAL
 from custom_components.pawport.models import Account, Pet, Tag, timezone_names
 
-from .conftest import PET, PET_ID, TAG, TAG_ID, FakePawport, setup_entry
+from .conftest import HOME_TIMEZONE, PET, PET_ID, TAG, TAG_ID, FakePawport, setup_entry
 
 # 2026-10-06 midday in the test instance's US/Pacific time zone.
 SAME_DAY = "2026-10-06 12:00:00-07:00"
@@ -102,20 +105,35 @@ async def test_pet_without_activity(
     assert hass.states.get("sensor.biscuit_trips_outside_today").state == "0"
 
 
+@pytest.mark.parametrize("name", ["Not/AZone", "../x"])
 async def test_unknown_home_timezone(
     hass: HomeAssistant,
     pawport: FakePawport,
     config_entry: MockConfigEntry,
     freezer: FrozenDateTimeFactory,
+    name: str,
 ) -> None:
-    # A zone name Home Assistant can't resolve leaves the pet on UTC days
-    # instead of failing the poll.
-    pawport.context["homes"][0]["timezone"] = "Not/AZone"
+    # A zone name Home Assistant can't resolve, or a malformed one, leaves the
+    # pet on UTC days instead of failing the poll.
+    pawport.context["homes"][0]["timezone"] = name
     freezer.move_to(SAME_DAY)
     await setup_entry(hass, config_entry)
     assert hass.states.get("sensor.biscuit_last_door_event").state == "came_in"
     # The home-local 10:30 trip reads as UTC, not as Los Angeles time.
     assert hass.states.get("sensor.biscuit_last_trip").state == "2026-10-06T10:30:00+00:00"
+
+
+async def test_home_timezone_resolved_off_the_event_loop(
+    hass: HomeAssistant, pawport: FakePawport, config_entry: MockConfigEntry
+) -> None:
+    # The zone database can be read from disk, so the coordinator goes through
+    # Home Assistant's async helper rather than building zones itself.
+    with patch(
+        "custom_components.pawport.coordinator.dt_util.async_get_time_zone",
+        wraps=dt_util.async_get_time_zone,
+    ) as resolve:
+        await setup_entry(hass, config_entry)
+    resolve.assert_awaited_with(HOME_TIMEZONE)
 
 
 async def test_tag_entities(
