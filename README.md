@@ -72,8 +72,8 @@ There's no inside or outside sensor on purpose. A pet opening the door from insi
 
 ### HACS
 
-1. In HACS, open the three-dot menu > **Custom repositories** and add `https://github.com/com6056/ha-pawport` as an **Integration**.
-2. Install **Pawport** and restart Home Assistant.
+1. In HACS, search for **Pawport**.
+2. Download it and restart Home Assistant.
 
 ### Manual
 
