@@ -13,8 +13,8 @@ from typing import Any
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-from pytest_homeassistant_custom_component.test_util.aiohttp import (
+from pytest_homeassistant.common import MockConfigEntry
+from pytest_homeassistant.test_util.aiohttp import (
     AiohttpClientMocker,
     AiohttpClientMockResponse,
 )
@@ -306,11 +306,6 @@ class FakePawport:
                 {"errors": [{"message": f"unknown command {variables['command']}"}]},
             )
         return self._respond(method, url, 200, {"data": {"sendDoorCommand": True}})
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
-    """Load custom_components/pawport in every test."""
 
 
 @pytest.fixture

@@ -9,7 +9,7 @@ from typing import Any
 
 import aiohttp
 import pytest
-from pytest_homeassistant_custom_component.test_util.aiohttp import (
+from pytest_homeassistant.test_util.aiohttp import (
     AiohttpClientMocker,
     AiohttpClientMockResponse,
 )

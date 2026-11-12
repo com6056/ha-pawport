@@ -15,12 +15,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
-from pytest_homeassistant_custom_component.components.diagnostics import (
+from pytest_homeassistant.common import MockConfigEntry, async_fire_time_changed
+from pytest_homeassistant.components.diagnostics import (
     get_diagnostics_for_config_entry,
 )
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMockResponse
-from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
+from pytest_homeassistant.test_util.aiohttp import AiohttpClientMockResponse
+from pytest_homeassistant.typing import ClientSessionGenerator
 
 from custom_components.pawport.api import GRAPHQL_URL
 from custom_components.pawport.const import SCAN_INTERVAL

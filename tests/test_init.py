@@ -9,9 +9,9 @@ from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMockResponse
-from pytest_homeassistant_custom_component.typing import WebSocketGenerator
+from pytest_homeassistant.common import MockConfigEntry, async_fire_time_changed
+from pytest_homeassistant.test_util.aiohttp import AiohttpClientMockResponse
+from pytest_homeassistant.typing import WebSocketGenerator
 
 from custom_components.pawport.api import GRAPHQL_URL
 from custom_components.pawport.const import CONF_AUTH_TOKEN, DOMAIN, SCAN_INTERVAL

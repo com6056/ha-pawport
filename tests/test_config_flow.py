@@ -9,8 +9,8 @@ from homeassistant.config_entries import SOURCE_USER
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMockResponse
+from pytest_homeassistant.common import MockConfigEntry
+from pytest_homeassistant.test_util.aiohttp import AiohttpClientMockResponse
 
 from custom_components.pawport.api import API_URL, GRAPHQL_URL
 from custom_components.pawport.const import CONF_AUTH_TOKEN, CONF_CODE, CONF_REFRESH_TOKEN, DOMAIN

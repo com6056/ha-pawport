@@ -61,9 +61,10 @@ class PawportCoordinator(DataUpdateCoordinator[Account]):
         for name in timezone_names(context) - self._timezones.keys():
             try:
                 self._timezones[name] = await dt_util.async_get_time_zone(name)
-            # Only "not found" is caught there. A malformed name (a path) raises
-            # ValueError, and one too long for the filesystem OSError.
-            except ValueError, OSError:
+            # Before Home Assistant 2026.11 only "not found" was caught there. A
+            # malformed name (a path) raised ValueError, and one too long for
+            # the filesystem OSError. Unreachable on 2026.11, which returns None.
+            except ValueError, OSError:  # pragma: no cover
                 self._timezones[name] = None
         return Account.from_api(
             context, {name: zone for name, zone in self._timezones.items() if zone is not None}
